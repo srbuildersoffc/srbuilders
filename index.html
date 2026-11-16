@@ -560,7 +560,10 @@ tfoot td {
 }
 
 /* ── Assistant View ── */
-.assistant-view { max-width: 600px; margin: 0 auto; }
+.assistant-view { max-width: 1000px; margin: 0 auto; }
+.assistant-entry-card { max-width: 600px; margin: 0 auto; }
+.asst-tab-panel { display: none; }
+.asst-tab-panel.active { display: block; }
 
 .quick-fill-row {
   display: flex;
@@ -825,55 +828,129 @@ tfoot td {
     <!-- ═══ ASSISTANT VIEW ═══ -->
     <div id="assistant-view" style="display:none;">
       <div class="assistant-view">
-        <h2 style="font-size:18px; font-weight:600; margin-bottom:20px;">Daily Expense Entry</h2>
-        <div class="form-group">
-          <label for="asst-site-select">Site</label>
-          <select id="asst-site-select">
-            <option value="">Select a site</option>
-          </select>
-        </div>
-        <form id="asst-expense-form" autocomplete="off">
-          <div class="form-group">
-            <label for="asst-date">Date</label>
-            <input type="date" id="asst-date" required>
-          </div>
-          <div class="form-group">
-            <label for="asst-desc">Description</label>
-            <textarea id="asst-desc" rows="2" required placeholder="What was the expense for?"></textarea>
-            <div class="quick-fill-row">
-              <button type="button" class="quick-fill-btn" data-fill="Cement">Cement</button>
-              <button type="button" class="quick-fill-btn" data-fill="Sand">Sand</button>
-              <button type="button" class="quick-fill-btn" data-fill="Mason">Mason</button>
-              <button type="button" class="quick-fill-btn" data-fill="Helper">Helper</button>
-              <button type="button" class="quick-fill-btn" data-fill="Bricks">Bricks</button>
-              <button type="button" class="quick-fill-btn" data-fill="JCB">JCB</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="asst-amount">Amount</label>
-            <div class="amount-input-wrapper">
-              <span class="currency-prefix">&#8377;</span>
-              <input type="number" id="asst-amount" min="1" step="1" required placeholder="0">
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary btn-full">Submit Expense</button>
-        </form>
 
-        <h3 style="font-size:14px; font-weight:600; margin-top:32px; margin-bottom:12px;">Today's Entries</h3>
-        <div class="table-wrapper">
-          <table id="asst-today-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Description</th>
-                <th style="text-align:right">Amount</th>
-              </tr>
-            </thead>
-            <tbody id="asst-today-tbody">
-              <tr><td colspan="3" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view entries</td></tr>
-            </tbody>
-          </table>
+        <!-- Assistant Tabs -->
+        <div class="tab-bar">
+          <button class="tab-btn active" id="asst-tab-btn-entry" data-asst-tab="asst-panel-entry">Daily Entry</button>
+          <button class="tab-btn" id="asst-tab-btn-ledger" data-asst-tab="asst-panel-ledger">Site-wise Expenses</button>
         </div>
+
+        <!-- Panel 1: Daily Entry Form -->
+        <div id="asst-panel-entry" class="asst-tab-panel active">
+          <div class="assistant-entry-card">
+            <h2 style="font-size:18px; font-weight:600; margin-bottom:20px;">Daily Expense Entry</h2>
+            <div class="form-group">
+              <label for="asst-site-select">Site</label>
+              <select id="asst-site-select">
+                <option value="">Select a site</option>
+              </select>
+            </div>
+            <form id="asst-expense-form" autocomplete="off">
+              <div class="form-group">
+                <label for="asst-date">Date</label>
+                <input type="date" id="asst-date" required>
+              </div>
+              <div class="form-group">
+                <label for="asst-desc">Description</label>
+                <textarea id="asst-desc" rows="2" required placeholder="What was the expense for?"></textarea>
+                <div class="quick-fill-row">
+                  <button type="button" class="quick-fill-btn" data-fill="Cement">Cement</button>
+                  <button type="button" class="quick-fill-btn" data-fill="Sand">Sand</button>
+                  <button type="button" class="quick-fill-btn" data-fill="Mason">Mason</button>
+                  <button type="button" class="quick-fill-btn" data-fill="Helper">Helper</button>
+                  <button type="button" class="quick-fill-btn" data-fill="Bricks">Bricks</button>
+                  <button type="button" class="quick-fill-btn" data-fill="JCB">JCB</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="asst-amount">Amount</label>
+                <div class="amount-input-wrapper">
+                  <span class="currency-prefix">&#8377;</span>
+                  <input type="number" id="asst-amount" min="1" step="1" required placeholder="0">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full">Submit Expense</button>
+            </form>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:32px; margin-bottom:12px;">
+              <h3 style="font-size:14px; font-weight:600; margin:0;">Today's Entries</h3>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-switch-to-ledger" style="font-size:12px; padding:3px 10px;">
+                View All Site Expenses &rarr;
+              </button>
+            </div>
+            <div class="table-wrapper">
+              <table id="asst-today-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th style="text-align:right">Amount</th>
+                    <th style="text-align:right; width:130px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="asst-today-tbody">
+                  <tr><td colspan="4" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view entries</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Site-wise Expenses Ledger -->
+        <div id="asst-panel-ledger" class="asst-tab-panel" style="display:none;">
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <div class="site-selector">
+                <select id="asst-ledger-site-select" aria-label="Select site">
+                  <option value="">Select a site</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-sm" id="btn-asst-add-expense">+ Add Expense</button>
+            </div>
+          </div>
+
+          <!-- Site Expense Summary (NO ADVANCES) -->
+          <div class="summary-strip" id="asst-expense-summary" style="display:none;">
+            <div class="summary-item">
+              <div class="summary-label">Site Name</div>
+              <div class="summary-value" id="asst-es-name" style="font-size:15px; font-weight:600;">--</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Total Expenses Logged</div>
+              <div class="summary-value mono text-danger" id="asst-es-total">--</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Total Entries</div>
+              <div class="summary-value mono" id="asst-es-count">--</div>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table id="asst-expenses-table" style="display:none;">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th style="text-align:right">Amount</th>
+                  <th style="text-align:right">Cumulative Total</th>
+                  <th style="text-align:right; width:130px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="asst-expenses-tbody">
+                <tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view expenses</td></tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2" style="text-align:right; font-weight:600;">Total</td>
+                  <td style="text-align:right" class="mono" id="asst-expenses-total">--</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1012,6 +1089,41 @@ tfoot td {
       <div class="modal-footer">
         <button type="button" class="btn btn-outline btn-sm modal-cancel">Cancel</button>
         <button type="submit" class="btn btn-primary btn-sm">Add Advance</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Expense Modal -->
+<div class="modal-overlay" id="modal-edit-expense">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Edit Expense</h3>
+      <button class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <form id="form-edit-expense" autocomplete="off">
+      <input type="hidden" id="ee-id">
+      <input type="hidden" id="ee-site-id">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="ee-date">Date</label>
+          <input type="date" id="ee-date" required>
+        </div>
+        <div class="form-group">
+          <label for="ee-desc">Description</label>
+          <textarea id="ee-desc" rows="2" required placeholder="Expense details"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="ee-amount">Amount (&#8377;)</label>
+          <div class="amount-input-wrapper">
+            <span class="currency-prefix">&#8377;</span>
+            <input type="number" id="ee-amount" min="1" step="1" required placeholder="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
       </div>
     </form>
   </div>
@@ -1408,6 +1520,39 @@ tfoot td {
     }
   }
 
+  var expenseStore = {};
+
+  function openEditExpenseModal(expense, siteId) {
+    document.getElementById('ee-id').value = expense.id;
+    document.getElementById('ee-site-id').value = siteId || expense.site_id || '';
+    var dateStr = '';
+    if (expense.expense_date) {
+      dateStr = String(expense.expense_date).slice(0, 10);
+    }
+    document.getElementById('ee-date').value = dateStr;
+    document.getElementById('ee-desc').value = expense.description || '';
+    document.getElementById('ee-amount').value = expense.amount || '';
+    openModal('modal-edit-expense');
+  }
+
+  function attachExpenseListeners(tbody, siteId) {
+    tbody.querySelectorAll('[data-edit-expense]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var ex = expenseStore[btn.dataset.editExpense];
+        if (ex) openEditExpenseModal(ex, siteId);
+      });
+    });
+
+    tbody.querySelectorAll('[data-delete-expense]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        pendingDeleteType = 'expense';
+        pendingDeleteId = btn.dataset.deleteExpense;
+        document.getElementById('delete-modal-msg').textContent = 'Are you sure you want to delete this expense? This action cannot be undone.';
+        openModal('modal-confirm-delete');
+      });
+    });
+  }
+
   async function loadExpenses(siteId) {
     try {
       var res = await apiFetch('/api/sites/' + siteId + '/expenses');
@@ -1424,6 +1569,7 @@ tfoot td {
       var html = '';
       var total = 0;
       expenses.forEach(function(ex) {
+        expenseStore[ex.id] = ex;
         var amt = Number(ex.amount) || 0;
         total += amt;
         html += '<tr>';
@@ -1431,19 +1577,15 @@ tfoot td {
         html += '<td>' + escapeHtml(ex.description || '') + '</td>';
         html += '<td style="text-align:right" class="mono">' + formatCurrency(amt) + '</td>';
         html += '<td style="text-align:right" class="mono">' + formatCurrency(ex.cumulative_expense) + '</td>';
-        html += '<td><button class="btn btn-danger" data-delete-expense="' + ex.id + '" aria-label="Delete expense">Delete</button></td>';
+        html += '<td style="text-align:right; white-space:nowrap;">';
+        html += '<button class="btn btn-outline btn-sm btn-edit-expense" data-edit-expense="' + ex.id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+        html += '<button class="btn btn-danger btn-sm btn-delete-expense" data-delete-expense="' + ex.id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+        html += '</td>';
         html += '</tr>';
       });
       tbody.innerHTML = html;
       document.getElementById('expenses-total').textContent = formatCurrency(total);
-
-      tbody.querySelectorAll('[data-delete-expense]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          pendingDeleteType = 'expense';
-          pendingDeleteId = btn.dataset.deleteExpense;
-          openModal('modal-confirm-delete');
-        });
-      });
+      attachExpenseListeners(tbody, siteId);
     } catch (err) {
       showToast('Failed to load expenses: ' + err.message, 'error');
     }
@@ -1527,13 +1669,25 @@ tfoot td {
         }
         await loadSummary();
         await loadSiteDropdowns();
+      } else if (pendingDeleteType === 'expense') {
+        if (getRole() === 'owner') {
+          if (selectedSiteId) {
+            loadExpenses(selectedSiteId);
+          }
+          await loadSummary();
+          if (selectedSiteId) {
+            loadExpenseSummary(selectedSiteId);
+          }
+        } else {
+          var asstSite = asstSelectedSiteId || asstSiteSelect.value;
+          if (asstSite) {
+            await loadTodayExpenses(asstSite);
+            await loadAssistantSiteExpenses(asstSite);
+          }
+        }
       } else {
         if (selectedSiteId) {
-          if (pendingDeleteType === 'expense') {
-            loadExpenses(selectedSiteId);
-          } else {
-            loadAdvances(selectedSiteId);
-          }
+          loadAdvances(selectedSiteId);
         }
         await loadSummary();
         if (selectedSiteId) {
@@ -1601,6 +1755,56 @@ tfoot td {
       closeModal('modal-edit-site');
       await loadSummary();
       await loadSiteDropdowns();
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  });
+
+  // ── Edit Expense Form ──
+  document.getElementById('form-edit-expense').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var id = document.getElementById('ee-id').value;
+    var expDate = document.getElementById('ee-date').value;
+    var desc = document.getElementById('ee-desc').value.trim();
+    var amount = Number(document.getElementById('ee-amount').value);
+
+    if (!expDate || !desc || !amount) {
+      showToast('All fields are required', 'error');
+      return;
+    }
+
+    try {
+      var res = await apiFetch('/api/expenses/' + id, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          expense_date: expDate,
+          description: desc,
+          amount: amount
+        })
+      });
+      if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        throw new Error(errData.message || errData.error || 'Failed to update expense');
+      }
+      showToast('Expense updated successfully', 'success');
+      closeModal('modal-edit-expense');
+
+      if (getRole() === 'owner') {
+        if (selectedSiteId) {
+          loadExpenses(selectedSiteId);
+        }
+        await loadSummary();
+        if (selectedSiteId) {
+          loadExpenseSummary(selectedSiteId);
+        }
+      } else {
+        var asstSite = asstSelectedSiteId || asstSiteSelect.value;
+        if (asstSite) {
+          await loadTodayExpenses(asstSite);
+          await loadAssistantSiteExpenses(asstSite);
+        }
+      }
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     }
@@ -1780,6 +1984,32 @@ tfoot td {
 
   // ── ASSISTANT VIEW ──
   var asstSiteSelect = document.getElementById('asst-site-select');
+  var asstLedgerSiteSelect = document.getElementById('asst-ledger-site-select');
+  var asstSelectedSiteId = '';
+
+  // Tab switching for Assistant
+  document.querySelectorAll('[data-asst-tab]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('[data-asst-tab]').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.asst-tab-panel').forEach(function(p) { p.classList.remove('active'); p.style.display = 'none'; });
+      btn.classList.add('active');
+      var target = document.getElementById(btn.dataset.asstTab);
+      if (target) {
+        target.classList.add('active');
+        target.style.display = 'block';
+      }
+    });
+  });
+
+  document.getElementById('btn-switch-to-ledger').addEventListener('click', function() {
+    var ledgerBtn = document.getElementById('asst-tab-btn-ledger');
+    if (ledgerBtn) ledgerBtn.click();
+  });
+
+  document.getElementById('btn-asst-add-expense').addEventListener('click', function() {
+    var entryBtn = document.getElementById('asst-tab-btn-entry');
+    if (entryBtn) entryBtn.click();
+  });
 
   async function loadAssistantSites() {
     try {
@@ -1790,6 +2020,18 @@ tfoot td {
         options += '<option value="' + s.site_id + '">' + escapeHtml(s.site_name) + '</option>';
       });
       asstSiteSelect.innerHTML = options;
+      asstLedgerSiteSelect.innerHTML = options;
+
+      if (!asstSelectedSiteId && sites.length > 0) {
+        asstSelectedSiteId = sites[0].site_id;
+      }
+
+      if (asstSelectedSiteId) {
+        asstSiteSelect.value = asstSelectedSiteId;
+        asstLedgerSiteSelect.value = asstSelectedSiteId;
+        loadTodayExpenses(asstSelectedSiteId);
+        loadAssistantSiteExpenses(asstSelectedSiteId);
+      }
     } catch (err) {
       showToast('Failed to load sites', 'error');
     }
@@ -1797,12 +2039,34 @@ tfoot td {
     document.getElementById('asst-date').value = todayISO();
   }
 
+  function clearAssistantTables() {
+    document.getElementById('asst-today-tbody').innerHTML =
+      '<tr><td colspan="4" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view entries</td></tr>';
+    document.getElementById('asst-expenses-tbody').innerHTML =
+      '<tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view expenses</td></tr>';
+    document.getElementById('asst-expenses-table').style.display = 'none';
+    document.getElementById('asst-expense-summary').style.display = 'none';
+  }
+
   asstSiteSelect.addEventListener('change', function() {
-    if (this.value) {
-      loadTodayExpenses(this.value);
+    asstSelectedSiteId = this.value;
+    asstLedgerSiteSelect.value = asstSelectedSiteId;
+    if (asstSelectedSiteId) {
+      loadTodayExpenses(asstSelectedSiteId);
+      loadAssistantSiteExpenses(asstSelectedSiteId);
     } else {
-      document.getElementById('asst-today-tbody').innerHTML =
-        '<tr><td colspan="3" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view entries</td></tr>';
+      clearAssistantTables();
+    }
+  });
+
+  asstLedgerSiteSelect.addEventListener('change', function() {
+    asstSelectedSiteId = this.value;
+    asstSiteSelect.value = asstSelectedSiteId;
+    if (asstSelectedSiteId) {
+      loadTodayExpenses(asstSelectedSiteId);
+      loadAssistantSiteExpenses(asstSelectedSiteId);
+    } else {
+      clearAssistantTables();
     }
   });
 
@@ -1813,21 +2077,78 @@ tfoot td {
       var tbody = document.getElementById('asst-today-tbody');
 
       if (entries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--secondary); padding:20px;">No entries yet today.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--secondary); padding:20px;">No entries yet today.</td></tr>';
         return;
       }
 
       var html = '';
       entries.forEach(function(e) {
+        expenseStore[e.id] = e;
         html += '<tr>';
         html += '<td style="white-space:nowrap">' + formatDateDisplay(e.expense_date) + '</td>';
         html += '<td>' + escapeHtml(e.description || '') + '</td>';
         html += '<td style="text-align:right" class="mono">' + formatCurrency(e.amount) + '</td>';
+        html += '<td style="text-align:right; white-space:nowrap;">';
+        html += '<button class="btn btn-outline btn-sm btn-edit-expense" data-edit-expense="' + e.id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+        html += '<button class="btn btn-danger btn-sm btn-delete-expense" data-delete-expense="' + e.id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+        html += '</td>';
         html += '</tr>';
       });
       tbody.innerHTML = html;
+      attachExpenseListeners(tbody, siteId);
     } catch (err) {
       showToast('Failed to load today\'s entries', 'error');
+    }
+  }
+
+  async function loadAssistantSiteExpenses(siteId) {
+    try {
+      var res = await apiFetch('/api/sites/' + siteId + '/expenses');
+      var expenses = await res.json();
+
+      var table = document.getElementById('asst-expenses-table');
+      var summary = document.getElementById('asst-expense-summary');
+      table.style.display = 'table';
+      summary.style.display = 'flex';
+
+      var siteOption = asstSiteSelect.querySelector('option[value="' + siteId + '"]');
+      var siteName = siteOption ? siteOption.textContent : siteId;
+      document.getElementById('asst-es-name').textContent = siteName;
+
+      var tbody = document.getElementById('asst-expenses-tbody');
+      if (expenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">No expenses recorded yet for this site.</td></tr>';
+        document.getElementById('asst-expenses-total').textContent = formatCurrency(0);
+        document.getElementById('asst-es-total').textContent = formatCurrency(0);
+        document.getElementById('asst-es-count').textContent = '0 entries';
+        return;
+      }
+
+      var html = '';
+      var total = 0;
+      expenses.forEach(function(ex) {
+        expenseStore[ex.id] = ex;
+        var amt = Number(ex.amount) || 0;
+        total += amt;
+        html += '<tr>';
+        html += '<td style="white-space:nowrap">' + formatDateDisplay(ex.expense_date) + '</td>';
+        html += '<td>' + escapeHtml(ex.description || '') + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(amt) + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(ex.cumulative_expense) + '</td>';
+        html += '<td style="text-align:right; white-space:nowrap;">';
+        html += '<button class="btn btn-outline btn-sm btn-edit-expense" data-edit-expense="' + ex.id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+        html += '<button class="btn btn-danger btn-sm btn-delete-expense" data-delete-expense="' + ex.id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+        html += '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      document.getElementById('asst-expenses-total').textContent = formatCurrency(total);
+      document.getElementById('asst-es-total').textContent = formatCurrency(total);
+      document.getElementById('asst-es-count').textContent = expenses.length + ' entries';
+
+      attachExpenseListeners(tbody, siteId);
+    } catch (err) {
+      showToast('Failed to load site expenses: ' + err.message, 'error');
     }
   }
 
@@ -1881,7 +2202,8 @@ tfoot td {
       document.getElementById('asst-desc').value = '';
       document.getElementById('asst-amount').value = '';
       document.getElementById('asst-date').value = todayISO();
-      loadTodayExpenses(siteId);
+      await loadTodayExpenses(siteId);
+      await loadAssistantSiteExpenses(siteId);
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     }
