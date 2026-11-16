@@ -230,8 +230,8 @@ app.delete('/api/sites/:id', ownerOnly, async (req, res) => {
   }
 });
 
-// GET /api/sites/:id/expenses — ownerOnly
-app.get('/api/sites/:id/expenses', ownerOnly, async (req, res) => {
+// GET /api/sites/:id/expenses — anyRole (assistant & owner site expenses)
+app.get('/api/sites/:id/expenses', anyRole, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM v_expense_ledger WHERE site_id=$1 ORDER BY expense_date, id',
@@ -259,10 +259,32 @@ app.post('/api/sites/:id/expenses', anyRole, async (req, res) => {
   }
 });
 
-// DELETE /api/expenses/:id — ownerOnly
-app.delete('/api/expenses/:id', ownerOnly, async (req, res) => {
+// PUT /api/expenses/:id — anyRole (Edit Expense Details)
+app.put('/api/expenses/:id', anyRole, async (req, res) => {
+  const { expense_date, description, amount } = req.body;
+  if (!expense_date || !description || amount == null)
+    return res.status(400).json({ error: 'expense_date, description and amount are required' });
   try {
-    await pool.query('DELETE FROM expenses WHERE id=$1', [req.params.id]);
+    const result = await pool.query(
+      'UPDATE expenses SET expense_date = $1, description = $2, amount = $3 WHERE id = $4 RETURNING id, site_id, expense_date, description, amount',
+      [expense_date, description, parseFloat(amount), req.params.id]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    res.json({ ok: true, expense: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/expenses/:id — anyRole (Delete Expense)
+app.delete('/api/expenses/:id', anyRole, async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM expenses WHERE id=$1', [req.params.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
