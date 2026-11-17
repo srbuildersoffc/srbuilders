@@ -52,20 +52,91 @@ app.get('/', (req, res) => {
   res.status(404).send('index.html not found');
 });
 
-// ─── Serve PWA Static Files (for Vercel Serverless compatibility) ──────────
-const servePWAFile = (filename, contentType) => (req, res) => {
-  if (contentType) res.setHeader('Content-Type', contentType);
-  const p1 = path.join(__dirname, filename);
-  if (fs.existsSync(p1)) return res.sendFile(p1);
-  const p2 = path.join(__dirname, '..', filename);
-  if (fs.existsSync(p2)) return res.sendFile(p2);
-  res.status(404).send(`${filename} not found`);
-};
+// ─── Serve PWA Static Files (In-memory & File Fallback for Vercel) ─────────
+const manifestData = require('./manifest.json');
 
-app.get('/manifest.json', servePWAFile('manifest.json', 'application/manifest+json'));
-app.get('/sw.js', servePWAFile('sw.js', 'application/javascript'));
-app.get('/icon-192.png', servePWAFile('icon-192.png', 'image/png'));
-app.get('/icon-512.png', servePWAFile('icon-512.png', 'image/png'));
+app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json(manifestData);
+});
+
+const swScript = `// SR Builders Service Worker
+const CACHE_NAME = 'srbuilders-v1';
+const ASSETS_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});`;
+
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.send(swScript);
+});
+
+let icon192 = null;
+let icon512 = null;
+try {
+  const p192 = path.join(__dirname, 'icon-192.png');
+  if (fs.existsSync(p192)) icon192 = fs.readFileSync(p192);
+} catch (e) {}
+
+try {
+  const p512 = path.join(__dirname, 'icon-512.png');
+  if (fs.existsSync(p512)) icon512 = fs.readFileSync(p512);
+} catch (e) {}
+
+app.get('/icon-192.png', (req, res) => {
+  if (icon192) {
+    res.setHeader('Content-Type', 'image/png');
+    return res.send(icon192);
+  }
+  res.redirect('https://img.icons8.com/color/192/construction.png');
+});
+
+app.get('/icon-512.png', (req, res) => {
+  if (icon512) {
+    res.setHeader('Content-Type', 'image/png');
+    return res.send(icon512);
+  }
+  res.redirect('https://img.icons8.com/color/512/construction.png');
+});
 
 // ─── Token helpers ──────────────────────────────────────────────────────────
 function makeToken(role, username) {
