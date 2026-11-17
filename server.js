@@ -52,6 +52,21 @@ app.get('/', (req, res) => {
   res.status(404).send('index.html not found');
 });
 
+// ─── Serve PWA Static Files (for Vercel Serverless compatibility) ──────────
+const servePWAFile = (filename, contentType) => (req, res) => {
+  if (contentType) res.setHeader('Content-Type', contentType);
+  const p1 = path.join(__dirname, filename);
+  if (fs.existsSync(p1)) return res.sendFile(p1);
+  const p2 = path.join(__dirname, '..', filename);
+  if (fs.existsSync(p2)) return res.sendFile(p2);
+  res.status(404).send(`${filename} not found`);
+};
+
+app.get('/manifest.json', servePWAFile('manifest.json', 'application/manifest+json'));
+app.get('/sw.js', servePWAFile('sw.js', 'application/javascript'));
+app.get('/icon-192.png', servePWAFile('icon-192.png', 'image/png'));
+app.get('/icon-512.png', servePWAFile('icon-512.png', 'image/png'));
+
 // ─── Token helpers ──────────────────────────────────────────────────────────
 function makeToken(role, username) {
   const payload = Buffer.from(JSON.stringify({ role, username, exp: Date.now() + TOKEN_TTL })).toString('base64');
