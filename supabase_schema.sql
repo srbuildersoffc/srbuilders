@@ -99,3 +99,16 @@ INSERT INTO expenses (site_id, expense_date, description, amount) VALUES
   ('S001', '2026-11-02', 'Helper - 6 workers', 4200),
   ('S002', '2026-11-01', 'Steel rods - 500 kg', 45000),
   ('S002', '2026-11-02', 'Bricks - 5000 nos', 35000);
+
+-- 8. Row Level Security (RLS) & Protection against public PostgREST exposure
+ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.advance_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.sites FROM anon;
+REVOKE ALL ON TABLE public.advance_payments FROM anon;
+REVOKE ALL ON TABLE public.expenses FROM anon;
+
+REVOKE ALL ON public.v_advance_ledger FROM anon;
+REVOKE ALL ON public.v_expense_ledger FROM anon;
+REVOKE ALL ON public.v_sites_summary FROM anon;
