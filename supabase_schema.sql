@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 );
 
 -- 4. Advance Ledger View (Calculates cumulative total per site)
-CREATE OR REPLACE VIEW v_advance_ledger AS
+CREATE OR REPLACE VIEW v_advance_ledger WITH (security_invoker = true) AS
 SELECT 
   a.id,
   a.site_id,
@@ -47,7 +47,7 @@ FROM advance_payments a
 JOIN sites s ON a.site_id = s.site_id;
 
 -- 5. Daily Expense Ledger View (Calculates cumulative total per site)
-CREATE OR REPLACE VIEW v_expense_ledger AS
+CREATE OR REPLACE VIEW v_expense_ledger WITH (security_invoker = true) AS
 SELECT 
   e.id,
   e.site_id,
@@ -60,7 +60,7 @@ FROM expenses e
 JOIN sites s ON e.site_id = s.site_id;
 
 -- 6. All Sites Summary View (Auto-updates with live totals & difference)
-CREATE OR REPLACE VIEW v_sites_summary AS
+CREATE OR REPLACE VIEW v_sites_summary WITH (security_invoker = true) AS
 SELECT 
   s.site_id,
   s.site_name,
