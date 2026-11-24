@@ -2353,6 +2353,7 @@ tfoot td {
   });
 
   // ── Add Expense Form ──
+  var isSubmittingOwnerExpense = false;
   document.getElementById('btn-add-expense').addEventListener('click', function() {
     if (!selectedSiteId) {
       showToast('Please select a site first', 'error');
@@ -2369,6 +2370,8 @@ tfoot td {
 
   document.getElementById('form-add-expense').addEventListener('submit', async function(e) {
     e.preventDefault();
+    if (isSubmittingOwnerExpense) return;
+
     var expDate = document.getElementById('ae-date').value;
     var desc = document.getElementById('ae-desc').value.trim();
     var amount = Number(document.getElementById('ae-amount').value);
@@ -2381,6 +2384,12 @@ tfoot td {
     var submitBtn = this.querySelector('button[type="submit"]');
     var origBtnText = submitBtn ? submitBtn.textContent : '';
 
+    isSubmittingOwnerExpense = true;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = (currentOwnerPhoto && currentOwnerPhoto.data) ? 'Uploading to Drive...' : 'Saving...';
+    }
+
     try {
       var payload = {
         expense_date: expDate,
@@ -2389,7 +2398,6 @@ tfoot td {
       };
       if (currentOwnerPhoto && currentOwnerPhoto.data) {
         payload.image = { data: currentOwnerPhoto.data, type: currentOwnerPhoto.type };
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading to Drive...'; }
         showToast('Uploading receipt to Google Drive...', 'info');
       }
 
@@ -2398,7 +2406,6 @@ tfoot td {
         headers: authHeaders(),
         body: JSON.stringify(payload)
       });
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origBtnText; }
 
       if (!res.ok) {
         var errData = await res.json().catch(function() { return {}; });
@@ -2423,8 +2430,13 @@ tfoot td {
       await loadSummary();
       loadExpenseSummary(selectedSiteId);
     } catch (err) {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origBtnText; }
       showToast('Error: ' + err.message, 'error');
+    } finally {
+      isSubmittingOwnerExpense = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origBtnText;
+      }
     }
   });
 
@@ -2456,6 +2468,7 @@ tfoot td {
   });
 
   // ── Add Advance Form ──
+  var isSubmittingAdvance = false;
   document.getElementById('btn-add-advance').addEventListener('click', function() {
     if (!selectedSiteId) {
       showToast('Please select a site first', 'error');
@@ -2468,6 +2481,8 @@ tfoot td {
 
   document.getElementById('form-add-advance').addEventListener('submit', async function(e) {
     e.preventDefault();
+    if (isSubmittingAdvance) return;
+
     var payDate = document.getElementById('aa-date').value;
     var amount = Number(document.getElementById('aa-amount').value);
     var notes = document.getElementById('aa-notes').value.trim();
@@ -2475,6 +2490,14 @@ tfoot td {
     if (!payDate || !amount) {
       showToast('Date and amount are required', 'error');
       return;
+    }
+
+    var submitBtn = this.querySelector('button[type="submit"]');
+    var origBtnText = submitBtn ? submitBtn.textContent : '';
+    isSubmittingAdvance = true;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
     }
 
     try {
@@ -2498,6 +2521,12 @@ tfoot td {
       loadExpenseSummary(selectedSiteId);
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
+    } finally {
+      isSubmittingAdvance = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origBtnText;
+      }
     }
   });
 
@@ -2778,8 +2807,11 @@ tfoot td {
   });
 
   // Assistant expense form
+  var isSubmittingAsstExpense = false;
   document.getElementById('asst-expense-form').addEventListener('submit', async function(e) {
     e.preventDefault();
+    if (isSubmittingAsstExpense) return;
+
     var siteId = asstSiteSelect.value;
     if (!siteId) {
       showToast('Please select a site first', 'error');
@@ -2798,6 +2830,12 @@ tfoot td {
     var submitBtn = this.querySelector('button[type="submit"]');
     var origBtnText = submitBtn ? submitBtn.textContent : '';
 
+    isSubmittingAsstExpense = true;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = (currentAsstPhoto && currentAsstPhoto.data) ? 'Uploading to Drive...' : 'Saving...';
+    }
+
     try {
       var payload = {
         expense_date: expDate,
@@ -2806,7 +2844,6 @@ tfoot td {
       };
       if (currentAsstPhoto && currentAsstPhoto.data) {
         payload.image = { data: currentAsstPhoto.data, type: currentAsstPhoto.type };
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading to Drive...'; }
         showToast('Uploading receipt to Google Drive...', 'info');
       }
 
@@ -2815,7 +2852,6 @@ tfoot td {
         headers: authHeaders(),
         body: JSON.stringify(payload)
       });
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origBtnText; }
 
       if (!res.ok) {
         var errData = await res.json().catch(function() { return {}; });
@@ -2844,8 +2880,13 @@ tfoot td {
       await loadTodayExpenses(siteId);
       await loadAssistantSiteExpenses(siteId);
     } catch (err) {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origBtnText; }
       showToast('Error: ' + err.message, 'error');
+    } finally {
+      isSubmittingAsstExpense = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origBtnText;
+      }
     }
   });
 

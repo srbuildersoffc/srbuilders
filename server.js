@@ -328,6 +328,21 @@ async function ensureSchema() {
   }
 }
 
+// ─── Deduplication Guard for Rapid Multiple Clicks ────────────────────────────
+const recentExpenseSubmissions = new Map();
+const recentAdvanceSubmissions = new Map();
+
+function cleanDeduplicationCache() {
+  const cutoff = Date.now() - 5000;
+  for (const [key, val] of recentExpenseSubmissions.entries()) {
+    if (val.time < cutoff) recentExpenseSubmissions.delete(key);
+  }
+  for (const [key, val] of recentAdvanceSubmissions.entries()) {
+    if (val.time < cutoff) recentAdvanceSubmissions.delete(key);
+  }
+}
+setInterval(cleanDeduplicationCache, 10000).unref();
+
 // GET /api/sites/:id/expenses
 app.get('/api/sites/:id/expenses', anyRole, async (req, res) => {
   await ensureSchema();
@@ -366,6 +381,17 @@ app.post('/api/sites/:id/expenses', anyRole, async (req, res) => {
     return res.status(400).json({ error: 'expense_date, description and amount are required' });
   const validAmount = parseAmount(amount);
   if (validAmount === null) return res.status(400).json({ error: 'Amount must be a positive number up to 99,999,999' });
+
+  // Deduplication check: prevent identical entry submitted within 3.5 seconds
+  const dedupKey = `${req.params.id}|${expense_date}|${description.trim()}|${validAmount}`;
+  const now = Date.now();
+  if (recentExpenseSubmissions.has(dedupKey)) {
+    const existing = recentExpenseSubmissions.get(dedupKey);
+    if (now - existing.time < 3500) {
+      console.log(`[DEDUP] Duplicate click blocked for expense: ${dedupKey}`);
+      return res.status(200).json(existing.response);
+    }
+  }
 
   let finalReceiptUrl = receipt_url || null;
 
@@ -418,7 +444,9 @@ app.post('/api/sites/:id/expenses', anyRole, async (req, res) => {
         throw colErr;
       }
     }
-    res.status(201).json({ id: r.rows[0].id, receipt_url: finalReceiptUrl });
+    const responseData = { id: r.rows[0].id, receipt_url: finalReceiptUrl };
+    recentExpenseSubmissions.set(dedupKey, { time: Date.now(), response: responseData });
+    res.status(201).json(responseData);
   } catch (err) { handleDbError(res, err); }
 });
 
@@ -514,12 +542,26 @@ app.post('/api/sites/:id/advances', ownerOnly, async (req, res) => {
     return res.status(400).json({ error: 'payment_date and amount are required' });
   const validAmount = parseAmount(amount);
   if (validAmount === null) return res.status(400).json({ error: 'Amount must be a positive number up to 99,999,999' });
+
+  // Deduplication check: prevent duplicate advances submitted within 3.5 seconds
+  const dedupKey = `${req.params.id}|${payment_date}|${validAmount}|${(notes || '').trim()}`;
+  const now = Date.now();
+  if (recentAdvanceSubmissions.has(dedupKey)) {
+    const existing = recentAdvanceSubmissions.get(dedupKey);
+    if (now - existing.time < 3500) {
+      console.log(`[DEDUP] Duplicate click blocked for advance: ${dedupKey}`);
+      return res.status(200).json(existing.response);
+    }
+  }
+
   try {
     const r = await pool.query(
       'INSERT INTO advance_payments (site_id, payment_date, amount, notes) VALUES ($1, $2, $3, $4) RETURNING id',
       [req.params.id, payment_date, validAmount, notes || null]
     );
-    res.status(201).json({ id: r.rows[0].id });
+    const responseData = { id: r.rows[0].id };
+    recentAdvanceSubmissions.set(dedupKey, { time: Date.now(), response: responseData });
+    res.status(201).json(responseData);
   } catch (err) { handleDbError(res, err); }
 });
 
