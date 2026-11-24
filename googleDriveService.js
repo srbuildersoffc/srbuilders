@@ -41,10 +41,14 @@ function getDriveMode() {
 }
 
 /**
- * Helper to make HTTPS requests using native Node.js https
+ * Helper to make HTTPS requests using native Node.js https (supports redirects)
  */
-function httpsRequest(urlStr, options = {}, bodyBuffer = null) {
+function httpsRequest(urlStr, options = {}, bodyBuffer = null, redirectCount = 0) {
   return new Promise((resolve, reject) => {
+    if (redirectCount > 5) {
+      return reject(new Error('Too many redirects'));
+    }
+
     const url = new URL(urlStr);
     const reqOptions = {
       hostname: url.hostname,
@@ -55,6 +59,13 @@ function httpsRequest(urlStr, options = {}, bodyBuffer = null) {
     };
 
     const req = https.request(reqOptions, (res) => {
+      // Follow 301, 302, 303, 307, 308 redirects (crucial for Google Apps Script Web Apps)
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const nextUrl = new URL(res.headers.location, urlStr).toString();
+        // Redirect after POST should be followed via GET
+        return httpsRequest(nextUrl, { method: 'GET', headers: {} }, null, redirectCount + 1).then(resolve, reject);
+      }
+
       const chunks = [];
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
@@ -347,7 +358,7 @@ async function saveExpenseImage({ siteId, siteName, description, expenseDate, im
   if (mode === 'WEBHOOK') {
     try {
       const webhookUrl = process.env.GOOGLE_DRIVE_WEBHOOK_URL;
-      const payload = JSON.stringify({
+      const payloadObj = {
         siteId,
         siteName,
         fileName,
@@ -355,19 +366,44 @@ async function saveExpenseImage({ siteId, siteName, description, expenseDate, im
         description,
         mimeType: detectedMime,
         base64: base64Data
-      });
-      const res = await httpsRequest(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload)
-        }
-      }, Buffer.from(payload));
+      };
 
+      let resData = null;
+
+      if (typeof fetch === 'function') {
+        const fetchRes = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadObj),
+          redirect: 'follow'
+        });
+        const text = await fetchRes.text();
+        try {
+          resData = JSON.parse(text);
+        } catch (_) {
+          throw new Error(`Invalid response from webhook: ${text.slice(0, 300)}`);
+        }
+      } else {
+        const payload = JSON.stringify(payloadObj);
+        resData = await httpsRequest(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        }, Buffer.from(payload));
+      }
+
+      if (resData && resData.error) {
+        throw new Error(`Google Apps Script error: ${resData.error}`);
+      }
+
+      const driveUrl = resData.viewUrl || resData.url;
+      console.log(`[DRIVE WEBHOOK] Uploaded ${fileName} -> ${driveUrl}`);
       return {
-        fileId: res.fileId || fileName,
+        fileId: resData.fileId || fileName,
         fileName: fileName,
-        viewUrl: res.viewUrl || res.url
+        viewUrl: driveUrl
       };
     } catch (hookErr) {
       console.error('[DRIVE WEBHOOK ERROR]:', hookErr.message);
@@ -380,8 +416,88 @@ async function saveExpenseImage({ siteId, siteName, description, expenseDate, im
   return saveLocally(siteId, fileName, fileBuffer);
 }
 
+/**
+ * Extracts Google Drive file ID from a view/sharing URL
+ */
+function extractFileIdFromUrl(url) {
+  if (!url) return null;
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Deletes an expense image from Google Drive (or local storage)
+ */
+async function deleteExpenseImage(receiptUrl) {
+  if (!receiptUrl) return;
+
+  // Handle local file fallback
+  if (receiptUrl.startsWith('/uploads/')) {
+    try {
+      const relativePath = decodeURIComponent(receiptUrl.replace(/^\//, ''));
+      const localPath = path.join(__dirname, 'public', relativePath);
+      if (fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+        console.log('[LOCAL] Deleted file:', localPath);
+      }
+    } catch (e) {
+      console.warn('[LOCAL DELETE NOTE]:', e.message);
+    }
+    return;
+  }
+
+  const fileId = extractFileIdFromUrl(receiptUrl);
+  if (!fileId) return;
+
+  const mode = getDriveMode();
+
+  if (mode === 'WEBHOOK') {
+    try {
+      const webhookUrl = process.env.GOOGLE_DRIVE_WEBHOOK_URL;
+      const payloadObj = { action: 'delete', fileId: fileId };
+
+      if (typeof fetch === 'function') {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadObj),
+          redirect: 'follow'
+        });
+      } else {
+        const payload = JSON.stringify(payloadObj);
+        await httpsRequest(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        }, Buffer.from(payload));
+      }
+      console.log(`[DRIVE WEBHOOK] Deleted file ${fileId} from Google Drive`);
+    } catch (err) {
+      console.error('[DRIVE DELETE ERROR]:', err.message);
+    }
+    return;
+  }
+
+  if (mode === 'SERVICE_ACCOUNT' || mode === 'OAUTH2') {
+    try {
+      const token = await getAccessToken();
+      await httpsRequest(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      console.log(`[DRIVE] Deleted file ${fileId} from Google Drive`);
+    } catch (err) {
+      console.error('[DRIVE DELETE ERROR]:', err.message);
+    }
+  }
+}
+
 module.exports = {
   buildFileName,
   getDriveMode,
-  saveExpenseImage
+  saveExpenseImage,
+  extractFileIdFromUrl,
+  deleteExpenseImage
 };

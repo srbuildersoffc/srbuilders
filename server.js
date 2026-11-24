@@ -10,7 +10,7 @@ const fs        = require('fs');
 const XLSX      = require('xlsx');
 const helmet    = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { saveExpenseImage, getDriveMode } = require('./googleDriveService');
+const { saveExpenseImage, getDriveMode, deleteExpenseImage } = require('./googleDriveService');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -287,6 +287,13 @@ app.put('/api/sites/:id', ownerOnly, async (req, res) => {
 // DELETE /api/sites/:id
 app.delete('/api/sites/:id', ownerOnly, async (req, res) => {
   try {
+    try {
+      const expRes = await pool.query('SELECT receipt_url FROM expenses WHERE site_id=$1 AND receipt_url IS NOT NULL', [req.params.id]);
+      expRes.rows.forEach(r => {
+        if (r.receipt_url) deleteExpenseImage(r.receipt_url).catch(e => console.warn('[DRIVE DELETE NOTE]:', e.message));
+      });
+    } catch (_) {}
+
     await pool.query('DELETE FROM expenses WHERE site_id=$1', [req.params.id]);
     await pool.query('DELETE FROM advance_payments WHERE site_id=$1', [req.params.id]);
     await pool.query('DELETE FROM sites WHERE site_id=$1', [req.params.id]);
@@ -294,15 +301,66 @@ app.delete('/api/sites/:id', ownerOnly, async (req, res) => {
   } catch (err) { handleDbError(res, err); }
 });
 
+// ─── Auto DB Schema Migrations (ensures receipt_url exists) ───────────────────
+let schemaInitialized = false;
+async function ensureSchema() {
+  if (schemaInitialized) return;
+  try {
+    await pool.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT');
+    await pool.query(`
+      CREATE OR REPLACE VIEW v_expense_ledger WITH (security_invoker = true) AS
+      SELECT 
+        e.id,
+        e.site_id,
+        s.site_name,
+        e.expense_date,
+        e.description,
+        e.amount,
+        SUM(e.amount) OVER (PARTITION BY e.site_id ORDER BY e.expense_date, e.id) AS cumulative_expense,
+        e.receipt_url
+      FROM expenses e
+      JOIN sites s ON e.site_id = s.site_id
+    `);
+    schemaInitialized = true;
+    console.log('[DB] Schema verified (receipt_url column ready)');
+  } catch (err) {
+    console.warn('[DB SCHEMA NOTE]:', err.message);
+  }
+}
+
 // GET /api/sites/:id/expenses
 app.get('/api/sites/:id/expenses', anyRole, async (req, res) => {
+  await ensureSchema();
   try {
-    res.json((await pool.query('SELECT * FROM v_expense_ledger WHERE site_id=$1 ORDER BY expense_date, id', [req.params.id])).rows);
-  } catch (err) { handleDbError(res, err); }
+    // Direct join guarantees receipt_url is always returned even if DB view hasn't updated
+    const r = await pool.query(`
+      SELECT 
+        e.id,
+        e.site_id,
+        s.site_name,
+        e.expense_date,
+        e.description,
+        e.amount,
+        e.receipt_url,
+        SUM(e.amount) OVER (PARTITION BY e.site_id ORDER BY e.expense_date, e.id) AS cumulative_expense
+      FROM expenses e
+      JOIN sites s ON e.site_id = s.site_id
+      WHERE e.site_id = $1
+      ORDER BY e.expense_date, e.id
+    `, [req.params.id]);
+    res.json(r.rows);
+  } catch (err) {
+    try {
+      res.json((await pool.query('SELECT * FROM v_expense_ledger WHERE site_id=$1 ORDER BY expense_date, id', [req.params.id])).rows);
+    } catch (e2) {
+      handleDbError(res, err);
+    }
+  }
 });
 
 // POST /api/sites/:id/expenses
 app.post('/api/sites/:id/expenses', anyRole, async (req, res) => {
+  await ensureSchema();
   const { expense_date, description, amount, image, receipt_url } = req.body;
   if (!expense_date || !description || amount == null)
     return res.status(400).json({ error: 'expense_date, description and amount are required' });
@@ -328,10 +386,10 @@ app.post('/api/sites/:id/expenses', anyRole, async (req, res) => {
 
       if (uploadRes && uploadRes.viewUrl) {
         finalReceiptUrl = uploadRes.viewUrl;
+        console.log('[EXPENSE SAVED] Receipt URL:', finalReceiptUrl);
       }
     } catch (imgErr) {
       console.error('[IMAGE UPLOAD ERROR]:', imgErr.message);
-      // Non-blocking: expense record creation still proceeds
     }
   }
 
@@ -344,10 +402,18 @@ app.post('/api/sites/:id/expenses', anyRole, async (req, res) => {
       );
     } catch (colErr) {
       if (colErr.message && colErr.message.includes('receipt_url')) {
-        r = await pool.query(
-          'INSERT INTO expenses (site_id, expense_date, description, amount) VALUES ($1, $2, $3, $4) RETURNING id',
-          [req.params.id, expense_date, description, validAmount]
-        );
+        try {
+          await pool.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT');
+          r = await pool.query(
+            'INSERT INTO expenses (site_id, expense_date, description, amount, receipt_url) VALUES ($1, $2, $3, $4, $5) RETURNING id, receipt_url',
+            [req.params.id, expense_date, description, validAmount, finalReceiptUrl]
+          );
+        } catch (_) {
+          r = await pool.query(
+            'INSERT INTO expenses (site_id, expense_date, description, amount) VALUES ($1, $2, $3, $4) RETURNING id',
+            [req.params.id, expense_date, description, validAmount]
+          );
+        }
       } else {
         throw colErr;
       }
@@ -406,6 +472,12 @@ app.put('/api/expenses/:id', anyRole, async (req, res) => {
         throw colErr;
       }
     }
+
+    // If an old image was replaced or removed, delete it from Google Drive
+    if (existing.receipt_url && finalReceiptUrl !== existing.receipt_url) {
+      deleteExpenseImage(existing.receipt_url).catch(e => console.warn('[DRIVE DELETE NOTE]:', e.message));
+    }
+
     res.json({ ok: true, expense: r.rows[0] });
   } catch (err) { handleDbError(res, err); }
 });
@@ -413,9 +485,17 @@ app.put('/api/expenses/:id', anyRole, async (req, res) => {
 // DELETE /api/expenses/:id  (SEC-005 FIX: existence check added)
 app.delete('/api/expenses/:id', anyRole, async (req, res) => {
   try {
-    const check = await pool.query('SELECT id FROM expenses WHERE id=$1', [req.params.id]);
+    const check = await pool.query('SELECT id, receipt_url FROM expenses WHERE id=$1', [req.params.id]);
     if (check.rowCount === 0) return res.status(404).json({ error: 'Expense not found' });
+    const receiptUrl = check.rows[0].receipt_url;
+
     await pool.query('DELETE FROM expenses WHERE id=$1', [req.params.id]);
+
+    // Delete image from Google Drive if it existed
+    if (receiptUrl) {
+      deleteExpenseImage(receiptUrl).catch(e => console.warn('[DRIVE DELETE NOTE]:', e.message));
+    }
+
     res.json({ ok: true });
   } catch (err) { handleDbError(res, err); }
 });
@@ -509,6 +589,7 @@ app.get('/api/export/all', ownerOnly, async (req, res) => {
 
 // GET /api/sites/:id/expenses/today
 app.get('/api/sites/:id/expenses/today', anyRole, async (req, res) => {
+  await ensureSchema();
   try {
     const today = new Date().toISOString().slice(0, 10);
     try {
