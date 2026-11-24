@@ -1398,6 +1398,10 @@ tfoot td {
               <button type="button" class="photo-remove-btn" id="ee-btn-remove-photo" title="Remove Photo">&times;</button>
             </div>
           </div>
+          <div id="ee-receipt-url-wrap" style="display:none; margin-top:8px; font-size:12px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:6px 10px;">
+            <span style="color:var(--secondary); font-weight:500;">Google Drive Link: </span>
+            <a id="ee-receipt-url-link" href="#" target="_blank" rel="noopener noreferrer" style="color:var(--primary); word-break:break-all; font-family:var(--mono);"></a>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -1415,16 +1419,20 @@ tfoot td {
       <h3 id="vr-modal-title">Expense Receipt</h3>
       <button class="modal-close" aria-label="Close">&times;</button>
     </div>
-    <div class="modal-body" style="padding:16px; text-align:center;">
-      <div id="vr-img-container" style="max-height:68vh; overflow:auto; display:flex; justify-content:center; align-items:center; background:#0b1120; border-radius:8px; padding:10px;">
-        <img id="vr-modal-img" src="" alt="Expense Receipt" style="max-width:100%; max-height:62vh; object-fit:contain; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+    <div class="modal-body" style="padding:16px;">
+      <div id="vr-img-container" style="max-height:60vh; overflow:auto; display:flex; justify-content:center; align-items:center; background:#0b1120; border-radius:8px; padding:10px;">
+        <img id="vr-modal-img" src="" alt="Expense Receipt" style="max-width:100%; max-height:55vh; object-fit:contain; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
       </div>
       <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <span id="vr-modal-desc" style="font-weight:600; color:var(--dark); font-size:14px;"></span>
-        <a id="vr-modal-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
+        <a id="vr-modal-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
           <span>Open in Google Drive / Full Screen</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
+      </div>
+      <div style="margin-top:10px; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <input type="text" id="vr-url-input" readonly style="font-size:12px; font-family:var(--mono); flex:1; border:none; background:transparent; color:var(--dark); outline:none;">
+        <button type="button" class="btn btn-outline btn-sm" id="vr-btn-copy-url" style="padding:3px 10px; font-size:11px; white-space:nowrap;">Copy Link</button>
       </div>
     </div>
   </div>
@@ -1546,11 +1554,36 @@ tfoot td {
     var img = document.getElementById('vr-modal-img');
     var link = document.getElementById('vr-modal-link');
     var descEl = document.getElementById('vr-modal-desc');
+    var urlInput = document.getElementById('vr-url-input');
 
     img.src = url;
     link.href = url;
     descEl.textContent = desc || 'Expense Receipt';
+    if (urlInput) urlInput.value = url;
     openModal('modal-view-receipt');
+  }
+
+  // Copy Receipt URL button in modal
+  var vrCopyBtn = document.getElementById('vr-btn-copy-url');
+  if (vrCopyBtn) {
+    vrCopyBtn.addEventListener('click', function() {
+      var urlInput = document.getElementById('vr-url-input');
+      if (urlInput && urlInput.value) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(urlInput.value).then(function() {
+            showToast('Receipt URL copied to clipboard!', 'success');
+          }).catch(function() {
+            urlInput.select();
+            document.execCommand('copy');
+            showToast('Receipt URL copied to clipboard!', 'success');
+          });
+        } else {
+          urlInput.select();
+          document.execCommand('copy');
+          showToast('Receipt URL copied to clipboard!', 'success');
+        }
+      }
+    });
   }
 
   async function handlePhotoSelection(file, previewWrapId, previewImgId, previewNameId, previewSizeId) {
@@ -1937,13 +1970,21 @@ tfoot td {
     document.getElementById('ee-camera-input').value = '';
     document.getElementById('ee-gallery-input').value = '';
     var previewWrap = document.getElementById('ee-photo-preview');
+    var urlWrap = document.getElementById('ee-receipt-url-wrap');
+    var urlLink = document.getElementById('ee-receipt-url-link');
     if (expense.receipt_url) {
       document.getElementById('ee-preview-img').src = expense.receipt_url;
       document.getElementById('ee-preview-name').textContent = 'Existing Receipt';
       document.getElementById('ee-preview-size').textContent = 'Saved in Google Drive';
       previewWrap.style.display = 'block';
+      if (urlWrap && urlLink) {
+        urlLink.href = expense.receipt_url;
+        urlLink.textContent = expense.receipt_url;
+        urlWrap.style.display = 'block';
+      }
     } else {
       previewWrap.style.display = 'none';
+      if (urlWrap) urlWrap.style.display = 'none';
     }
 
     openModal('modal-edit-expense');
@@ -1968,6 +2009,7 @@ tfoot td {
 
     tbody.querySelectorAll('.btn-view-receipt').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
+        e.preventDefault();
         e.stopPropagation();
         openReceiptModal(btn.dataset.url, btn.dataset.desc);
       });
@@ -1993,7 +2035,7 @@ tfoot td {
         expenseStore[ex.id] = ex;
         var amt = Number(ex.amount) || 0;
         total += amt;
-        var receiptBtn = ex.receipt_url ? ' <button type="button" class="btn-view-receipt receipt-pill" data-url="' + escapeHtml(ex.receipt_url) + '" data-desc="' + escapeHtml(ex.description || '') + '" title="View Bill/Receipt in Google Drive">&#128247; Receipt</button>' : '';
+        var receiptBtn = ex.receipt_url ? ' <a href="' + escapeHtml(ex.receipt_url) + '" target="_blank" rel="noopener noreferrer" class="btn-view-receipt receipt-pill" data-url="' + escapeHtml(ex.receipt_url) + '" data-desc="' + escapeHtml(ex.description || '') + '" title="Click to view receipt or right-click to copy link">&#128247; Receipt &#x2197;</a>' : '';
         html += '<tr>';
         html += '<td style="white-space:nowrap">' + formatDateDisplay(ex.expense_date) + '</td>';
         html += '<td>' + escapeHtml(ex.description || '') + receiptBtn + '</td>';
@@ -2336,6 +2378,9 @@ tfoot td {
       return;
     }
 
+    var submitBtn = this.querySelector('button[type="submit"]');
+    var origBtnText = submitBtn ? submitBtn.textContent : '';
+
     try {
       var payload = {
         expense_date: expDate,
@@ -2344,6 +2389,7 @@ tfoot td {
       };
       if (currentOwnerPhoto && currentOwnerPhoto.data) {
         payload.image = { data: currentOwnerPhoto.data, type: currentOwnerPhoto.type };
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading to Drive...'; }
         showToast('Uploading receipt to Google Drive...', 'info');
       }
 
@@ -2352,11 +2398,22 @@ tfoot td {
         headers: authHeaders(),
         body: JSON.stringify(payload)
       });
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origBtnText; }
+
       if (!res.ok) {
         var errData = await res.json().catch(function() { return {}; });
         throw new Error(errData.message || errData.error || 'Failed to add expense');
       }
-      showToast('Expense added successfully', 'success');
+
+      var resData = await res.json().catch(function() { return {}; });
+      if (resData && resData.receipt_url) {
+        showToast('Expense & Receipt saved to Google Drive!', 'success');
+      } else if (payload.image) {
+        showToast('Expense saved (Drive upload offline/pending)', 'warning');
+      } else {
+        showToast('Expense added successfully', 'success');
+      }
+
       currentOwnerPhoto = null;
       document.getElementById('ae-camera-input').value = '';
       document.getElementById('ae-gallery-input').value = '';
@@ -2366,6 +2423,7 @@ tfoot td {
       await loadSummary();
       loadExpenseSummary(selectedSiteId);
     } catch (err) {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origBtnText; }
       showToast('Error: ' + err.message, 'error');
     }
   });
@@ -2585,7 +2643,7 @@ tfoot td {
       var html = '';
       entries.forEach(function(e) {
         expenseStore[e.id] = e;
-        var receiptBtn = e.receipt_url ? ' <button type="button" class="btn-view-receipt receipt-pill" data-url="' + escapeHtml(e.receipt_url) + '" data-desc="' + escapeHtml(e.description || '') + '" title="View Bill/Receipt in Google Drive">&#128247; Receipt</button>' : '';
+        var receiptBtn = e.receipt_url ? ' <a href="' + escapeHtml(e.receipt_url) + '" target="_blank" rel="noopener noreferrer" class="btn-view-receipt receipt-pill" data-url="' + escapeHtml(e.receipt_url) + '" data-desc="' + escapeHtml(e.description || '') + '" title="Click to view receipt or right-click to copy link">&#128247; Receipt &#x2197;</a>' : '';
         html += '<tr>';
         html += '<td style="white-space:nowrap">' + formatDateDisplay(e.expense_date) + '</td>';
         html += '<td>' + escapeHtml(e.description || '') + receiptBtn + '</td>';
@@ -2632,7 +2690,7 @@ tfoot td {
         expenseStore[ex.id] = ex;
         var amt = Number(ex.amount) || 0;
         total += amt;
-        var receiptBtn = ex.receipt_url ? ' <button type="button" class="btn-view-receipt receipt-pill" data-url="' + escapeHtml(ex.receipt_url) + '" data-desc="' + escapeHtml(ex.description || '') + '" title="View Bill/Receipt in Google Drive">&#128247; Receipt</button>' : '';
+        var receiptBtn = ex.receipt_url ? ' <a href="' + escapeHtml(ex.receipt_url) + '" target="_blank" rel="noopener noreferrer" class="btn-view-receipt receipt-pill" data-url="' + escapeHtml(ex.receipt_url) + '" data-desc="' + escapeHtml(ex.description || '') + '" title="Click to view receipt or right-click to copy link">&#128247; Receipt &#x2197;</a>' : '';
         html += '<tr>';
         html += '<td style="white-space:nowrap">' + formatDateDisplay(ex.expense_date) + '</td>';
         html += '<td>' + escapeHtml(ex.description || '') + receiptBtn + '</td>';
@@ -2737,6 +2795,9 @@ tfoot td {
       return;
     }
 
+    var submitBtn = this.querySelector('button[type="submit"]');
+    var origBtnText = submitBtn ? submitBtn.textContent : '';
+
     try {
       var payload = {
         expense_date: expDate,
@@ -2745,6 +2806,7 @@ tfoot td {
       };
       if (currentAsstPhoto && currentAsstPhoto.data) {
         payload.image = { data: currentAsstPhoto.data, type: currentAsstPhoto.type };
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading to Drive...'; }
         showToast('Uploading receipt to Google Drive...', 'info');
       }
 
@@ -2753,11 +2815,22 @@ tfoot td {
         headers: authHeaders(),
         body: JSON.stringify(payload)
       });
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origBtnText; }
+
       if (!res.ok) {
         var errData = await res.json().catch(function() { return {}; });
         throw new Error(errData.message || errData.error || 'Failed to submit');
       }
-      showToast('Expense submitted successfully', 'success');
+
+      var resData = await res.json().catch(function() { return {}; });
+      if (resData && resData.receipt_url) {
+        showToast('Expense & Receipt saved to Google Drive!', 'success');
+      } else if (payload.image) {
+        showToast('Expense saved (Drive upload offline/pending)', 'warning');
+      } else {
+        showToast('Expense submitted successfully', 'success');
+      }
+
       document.getElementById('asst-desc').value = '';
       var asstQuick = document.getElementById('asst-quick-desc');
       if (asstQuick) asstQuick.value = '';
@@ -2771,6 +2844,7 @@ tfoot td {
       await loadTodayExpenses(siteId);
       await loadAssistantSiteExpenses(siteId);
     } catch (err) {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origBtnText; }
       showToast('Error: ' + err.message, 'error');
     }
   });
