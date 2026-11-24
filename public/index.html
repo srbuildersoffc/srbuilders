@@ -868,15 +868,39 @@ tfoot td {
                 <input type="date" id="asst-date" required>
               </div>
               <div class="form-group">
-                <label for="asst-desc">Description</label>
-                <textarea id="asst-desc" rows="2" required placeholder="What was the expense for?"></textarea>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <label for="asst-desc" style="margin-bottom:0;">Description</label>
+                  <select id="asst-quick-desc" class="desc-quick-select" data-target="asst-desc" style="width:auto; padding:4px 8px; font-size:12px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer;">
+                    <option value="">▼ Select Common Expense</option>
+                    <option value="M-Sand">M-Sand (Msand)</option>
+                    <option value="P-Sand">P-Sand (Psand)</option>
+                    <option value="Bricks">Bricks</option>
+                    <option value="Cement">Cement</option>
+                    <option value="Steel">Steel / TMT</option>
+                    <option value="Mason">Mason</option>
+                    <option value="Helper">Helper / Labour</option>
+                    <option value="JCB">JCB</option>
+                    <option value="River Sand">River Sand</option>
+                    <option value="Gravel / Blue Metal">Gravel / Blue Metal</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Painting">Painting</option>
+                    <option value="Tiles">Tiles / Granite</option>
+                    <option value="Centering / Wood">Centering / Wood</option>
+                    <option value="Water Tanker">Water Tanker</option>
+                    <option value="Transport">Transport / Lorry</option>
+                  </select>
+                </div>
+                <textarea id="asst-desc" rows="2" required placeholder="Type description or select from common expenses above..."></textarea>
                 <div class="quick-fill-row">
-                  <button type="button" class="quick-fill-btn" data-fill="Cement">Cement</button>
-                  <button type="button" class="quick-fill-btn" data-fill="Sand">Sand</button>
-                  <button type="button" class="quick-fill-btn" data-fill="Mason">Mason</button>
-                  <button type="button" class="quick-fill-btn" data-fill="Helper">Helper</button>
-                  <button type="button" class="quick-fill-btn" data-fill="Bricks">Bricks</button>
-                  <button type="button" class="quick-fill-btn" data-fill="JCB">JCB</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="M-Sand">M-Sand</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="P-Sand">P-Sand</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Bricks">Bricks</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Cement">Cement</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Steel">Steel</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Mason">Mason</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Helper">Helper</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="JCB">JCB</button>
                 </div>
               </div>
               <div class="form-group">
@@ -1059,8 +1083,40 @@ tfoot td {
           <input type="date" id="ae-date" required>
         </div>
         <div class="form-group">
-          <label for="ae-desc">Description</label>
-          <textarea id="ae-desc" rows="2" required placeholder="Expense details"></textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label for="ae-desc" style="margin-bottom:0;">Description</label>
+            <select id="ae-quick-desc" class="desc-quick-select" data-target="ae-desc" style="width:auto; padding:4px 8px; font-size:12px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer;">
+              <option value="">▼ Select Common Expense</option>
+              <option value="M-Sand">M-Sand (Msand)</option>
+              <option value="P-Sand">P-Sand (Psand)</option>
+              <option value="Bricks">Bricks</option>
+              <option value="Cement">Cement</option>
+              <option value="Steel">Steel / TMT</option>
+              <option value="Mason">Mason</option>
+              <option value="Helper">Helper / Labour</option>
+              <option value="JCB">JCB</option>
+              <option value="River Sand">River Sand</option>
+              <option value="Gravel / Blue Metal">Gravel / Blue Metal</option>
+              <option value="Plumbing">Plumbing</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Painting">Painting</option>
+              <option value="Tiles">Tiles / Granite</option>
+              <option value="Centering / Wood">Centering / Wood</option>
+              <option value="Water Tanker">Water Tanker</option>
+              <option value="Transport">Transport / Lorry</option>
+            </select>
+          </div>
+          <textarea id="ae-desc" rows="2" required placeholder="Type description or select from common expenses above..."></textarea>
+          <div class="quick-fill-row">
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="M-Sand">M-Sand</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="P-Sand">P-Sand</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Bricks">Bricks</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Cement">Cement</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Steel">Steel</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Mason">Mason</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Helper">Helper</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="JCB">JCB</button>
+          </div>
         </div>
         <div class="form-group">
           <label for="ae-amount">Amount (&#8377;)</label>
@@ -1127,8 +1183,30 @@ tfoot td {
           <input type="date" id="ee-date" required>
         </div>
         <div class="form-group">
-          <label for="ee-desc">Description</label>
-          <textarea id="ee-desc" rows="2" required placeholder="Expense details"></textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label for="ee-desc" style="margin-bottom:0;">Description</label>
+            <select id="ee-quick-desc" class="desc-quick-select" data-target="ee-desc" style="width:auto; padding:4px 8px; font-size:12px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer;">
+              <option value="">▼ Select Common Expense</option>
+              <option value="M-Sand">M-Sand (Msand)</option>
+              <option value="P-Sand">P-Sand (Psand)</option>
+              <option value="Bricks">Bricks</option>
+              <option value="Cement">Cement</option>
+              <option value="Steel">Steel / TMT</option>
+              <option value="Mason">Mason</option>
+              <option value="Helper">Helper / Labour</option>
+              <option value="JCB">JCB</option>
+              <option value="River Sand">River Sand</option>
+              <option value="Gravel / Blue Metal">Gravel / Blue Metal</option>
+              <option value="Plumbing">Plumbing</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Painting">Painting</option>
+              <option value="Tiles">Tiles / Granite</option>
+              <option value="Centering / Wood">Centering / Wood</option>
+              <option value="Water Tanker">Water Tanker</option>
+              <option value="Transport">Transport / Lorry</option>
+            </select>
+          </div>
+          <textarea id="ee-desc" rows="2" required placeholder="Expense details (Type or select from dropdown above)"></textarea>
         </div>
         <div class="form-group">
           <label for="ee-amount">Amount (&#8377;)</label>
@@ -1830,6 +1908,7 @@ tfoot td {
   // ── New Site Form ──
   document.getElementById('btn-new-site').addEventListener('click', function() {
     document.getElementById('form-new-site').reset();
+    document.getElementById('ns-date').value = todayISO();
     openModal('modal-new-site');
   });
 
@@ -2169,17 +2248,40 @@ tfoot td {
     }
   }
 
+  // Helper to append or set common expense text into a textarea
+  function appendExpenseDesc(textarea, val) {
+    if (!textarea || !val) return;
+    var current = textarea.value.trim();
+    if (current) {
+      textarea.value = current + ', ' + val;
+    } else {
+      textarea.value = val;
+    }
+    textarea.focus();
+    if (typeof textarea.setSelectionRange === 'function') {
+      var len = textarea.value.length;
+      textarea.setSelectionRange(len, len);
+    }
+  }
+
   // Quick-fill buttons
   document.querySelectorAll('.quick-fill-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var textarea = document.getElementById('asst-desc');
-      var current = textarea.value.trim();
-      if (current) {
-        textarea.value = current + ', ' + btn.dataset.fill;
-      } else {
-        textarea.value = btn.dataset.fill;
-      }
-      textarea.focus();
+      var targetId = btn.dataset.target || 'asst-desc';
+      var textarea = document.getElementById(targetId);
+      appendExpenseDesc(textarea, btn.dataset.fill);
+    });
+  });
+
+  // Dropdown quick-selects for description
+  document.querySelectorAll('.desc-quick-select').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+      var val = this.value;
+      if (!val) return;
+      var targetId = sel.dataset.target || (sel.id === 'ae-quick-desc' ? 'ae-desc' : sel.id === 'ee-quick-desc' ? 'ee-desc' : 'asst-desc');
+      var textarea = document.getElementById(targetId);
+      appendExpenseDesc(textarea, val);
+      sel.value = ''; // Reset dropdown so the same or another option can be selected again
     });
   });
 
@@ -2217,6 +2319,8 @@ tfoot td {
       }
       showToast('Expense submitted', 'success');
       document.getElementById('asst-desc').value = '';
+      var asstQuick = document.getElementById('asst-quick-desc');
+      if (asstQuick) asstQuick.value = '';
       document.getElementById('asst-amount').value = '';
       document.getElementById('asst-date').value = todayISO();
       await loadTodayExpenses(siteId);

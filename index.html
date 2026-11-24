@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SR Builders</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#C45A2D">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SR Builders">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js').catch(function(err) {
+        console.warn('Service worker registration failed:', err);
+      });
+    });
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F9F8F6;
+  --primary: #C45A2D;
+  --primary-hover: #A94A24;
+  --dark: #111111;
+  --secondary: #5F6368;
+  --border: #E0DDD8;
+  --card: #FFFFFF;
+  --success: #2D7D46;
+  --danger: #B83A2E;
+  --warning: #C48A2D;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --radius: 5px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--dark);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Login Screen ── */
+#login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 380px;
+}
+
+.login-brand {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-brand h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--dark);
+  letter-spacing: -0.5px;
+}
+
+.login-brand p {
+  color: var(--secondary);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+.login-card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font);
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--dark);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(196,90,45,0.12);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  bottom: 1px;
+  width: 40px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--secondary);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.password-toggle:hover { color: var(--dark); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+.btn-outline {
+  background: transparent;
+  color: var(--dark);
+  border-color: var(--border);
+}
+.btn-outline:hover { border-color: var(--secondary); background: rgba(0,0,0,0.02); }
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.btn-danger:hover { background: var(--danger); color: #fff; }
+
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+.btn-full { width: 100%; }
+
+.login-hint {
+  margin-top: 16px;
+  font-size: 11px;
+  color: var(--secondary);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.login-error {
+  color: var(--danger);
+  font-size: 12px;
+  margin-bottom: 12px;
+  display: none;
+}
+
+/* ── App Shell ── */
+#app-screen { display: none; min-height: 100vh; }
+
+.app-header {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-header .brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dark);
+  letter-spacing: -0.3px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-user {
+  font-size: 12px;
+  color: var(--secondary);
+}
+
+.header-user strong { color: var(--dark); font-weight: 500; }
+
+.app-content {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* ── Metrics Strip ── */
+.metrics-strip {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.metric-item {
+  flex: 1;
+  padding: 20px 24px;
+  border-right: 1px solid var(--border);
+}
+
+.metric-item:last-child { border-right: none; }
+
+.metric-item .metric-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--secondary);
+  margin-bottom: 6px;
+}
+
+.metric-item .metric-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--dark);
+}
+
+.metric-item .metric-value.positive { color: var(--success); }
+.metric-item .metric-value.negative { color: var(--danger); }
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover { color: var(--dark); }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Tables ── */
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--secondary);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+tbody tr:last-child td { border-bottom: none; }
+
+tfoot td {
+  padding: 10px 12px;
+  font-weight: 600;
+  border-top: 2px solid var(--border);
+}
+
+.mono { font-family: var(--mono); font-size: 13px; }
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }
+
+/* Utilization bar */
+.util-bar {
+  width: 80px;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.util-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.util-text {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--secondary);
+}
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Summary Strip (Expense/Advance tabs) ── */
+.summary-strip {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
+  padding: 14px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.summary-item .summary-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--secondary);
+  margin-bottom: 2px;
+}
+
+.summary-item .summary-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* ── Site Selector ── */
+.site-selector {
+  min-width: 220px;
+}
+
+.site-selector select {
+  padding: 8px 12px;
+  font-family: var(--font);
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--dark);
+  outline: none;
+  min-width: 220px;
+}
+
+.site-selector select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(196,90,45,0.12);
+}
+
+/* ── Status Badge ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 3px;
+  text-transform: capitalize;
+}
+
+.badge-active { background: #E8F5EC; color: var(--success); }
+.badge-completed { background: #E3EAF0; color: #3A6EA5; }
+.badge-onhold { background: #FFF4E5; color: var(--warning); }
+
+/* ── Modals ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal-box {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  padding: 20px 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--secondary);
+  padding: 4px;
+  line-height: 1;
+}
+.modal-close:hover { color: var(--dark); }
+
+.modal-body { padding: 20px 24px; }
+
+.modal-footer {
+  padding: 0 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ── Toast ── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  padding: 12px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  color: var(--dark);
+  animation: toastIn 0.2s ease;
+  max-width: 340px;
+}
+
+.toast.toast-success { border-left: 3px solid var(--success); }
+.toast.toast-error { border-left: 3px solid var(--danger); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Assistant View ── */
+.assistant-view { max-width: 1000px; margin: 0 auto; }
+.assistant-entry-card { max-width: 600px; margin: 0 auto; }
+.asst-tab-panel { display: none; }
+.asst-tab-panel.active { display: block; }
+
+.quick-fill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.quick-fill-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--dark);
+  transition: background 0.15s, border-color 0.15s;
+}
+.quick-fill-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+.amount-input-wrapper {
+  position: relative;
+}
+
+.amount-input-wrapper .currency-prefix {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--secondary);
+  pointer-events: none;
+}
+
+.amount-input-wrapper input {
+  padding-left: 28px;
+  font-family: var(--mono);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .metrics-strip { flex-direction: column; }
+  .metric-item { border-right: none; border-bottom: 1px solid var(--border); }
+  .metric-item:last-child { border-bottom: none; }
+  .metric-item .metric-value { font-size: 18px; }
+
+  .app-content { padding: 16px; }
+
+  .summary-strip { flex-direction: column; gap: 12px; }
+
+  .toolbar { flex-direction: column; align-items: flex-start; }
+  .toolbar-left, .toolbar-right { width: 100%; }
+
+  .tab-btn { padding: 8px 14px; font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  .app-header { padding: 0 16px; }
+  .header-user { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ LOGIN SCREEN ════════════════════ -->
+<div id="login-screen">
+  <div class="login-container">
+    <div class="login-brand">
+      <h1>SR Builders</h1>
+      <p>Good to see you again!</p>
+    </div>
+    <div class="login-card">
+      <h2>Sign In</h2>
+      <div id="login-error" class="login-error"></div>
+      <form id="login-form" autocomplete="off">
+        <div class="form-group">
+          <label for="login-username">User ID</label>
+          <input type="text" id="login-username" name="username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="login-password" name="password" required autocomplete="current-password">
+            <button type="button" class="password-toggle" id="pw-toggle" aria-label="Show password">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">Sign In</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ APP SCREEN ════════════════════ -->
+<div id="app-screen">
+
+  <!-- Header -->
+  <header class="app-header">
+    <span class="brand">SR Builders </span>
+    <div class="header-right">
+      <span class="header-user">Signed in as <strong id="header-username"></strong> (<span id="header-role"></span>)</span>
+      <button class="btn btn-outline btn-sm" id="logout-btn">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="app-content">
+
+    <!-- ═══ OWNER VIEW ═══ -->
+    <div id="owner-view" style="display:none;">
+
+      <!-- Metrics -->
+      <div class="metrics-strip" id="metrics-strip">
+        <div class="metric-item">
+          <div class="metric-label">Total Advance Received</div>
+          <div class="metric-value mono" id="m-advance">--</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">Total Expenses</div>
+          <div class="metric-value mono" id="m-expenses">--</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">Net Balance</div>
+          <div class="metric-value mono" id="m-balance">--</div>
+        </div>
+        <div class="metric-item">
+          <div class="metric-label">Active Sites</div>
+          <div class="metric-value" id="m-active">--</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="tab-projects">All Projects</button>
+        <button class="tab-btn" data-tab="tab-expenses">Expense Ledger</button>
+        <button class="tab-btn" data-tab="tab-advances">Advance Ledger</button>
+      </div>
+
+      <!-- Tab 1: All Projects -->
+      <div id="tab-projects" class="tab-panel active">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button class="btn btn-primary btn-sm" id="btn-new-site">Add New Site</button>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn btn-outline btn-sm" id="btn-export-all">Export Summary (.xlsx)</button>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table id="projects-table">
+            <thead>
+              <tr>
+                <th>Site ID</th>
+                <th>Project Name</th>
+                <th>Client</th>
+                <th>Status</th>
+                <th style="text-align:right">Total Advance</th>
+                <th style="text-align:right">Total Expenses</th>
+                <th style="text-align:right">Balance</th>
+                <th>Utilization</th>
+                <th style="text-align:right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="projects-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Expense Ledger -->
+      <div id="tab-expenses" class="tab-panel">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <div class="site-selector">
+              <select id="expense-site-select" aria-label="Select site">
+                <option value="">Select a site</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-add-expense">Add Expense</button>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn btn-outline btn-sm" id="btn-export-site">Export Site Ledger (.xlsx)</button>
+          </div>
+        </div>
+        <div class="summary-strip" id="expense-summary" style="display:none;">
+          <div class="summary-item">
+            <div class="summary-label">Total Advance</div>
+            <div class="summary-value mono" id="es-advance">--</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Total Spent</div>
+            <div class="summary-value mono" id="es-spent">--</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Remaining</div>
+            <div class="summary-value mono" id="es-remaining">--</div>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table id="expenses-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th style="text-align:right">Amount</th>
+                <th style="text-align:right">Cumulative Total</th>
+                <th style="width:70px"></th>
+              </tr>
+            </thead>
+            <tbody id="expenses-tbody"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" style="text-align:right; font-weight:600;">Total</td>
+                <td style="text-align:right" class="mono" id="expenses-total">--</td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: Advance Ledger -->
+      <div id="tab-advances" class="tab-panel">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <div class="site-selector">
+              <select id="advance-site-select" aria-label="Select site">
+                <option value="">Select a site</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-add-advance">Add Advance</button>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table id="advances-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th style="text-align:right">Amount</th>
+                <th>Notes</th>
+                <th style="text-align:right">Cumulative Total</th>
+                <th style="width:70px"></th>
+              </tr>
+            </thead>
+            <tbody id="advances-tbody"></tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:right; font-weight:600;">Total</td>
+                <td style="text-align:right" class="mono" id="advances-total">--</td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ASSISTANT VIEW ═══ -->
+    <div id="assistant-view" style="display:none;">
+      <div class="assistant-view">
+
+        <!-- Assistant Tabs -->
+        <div class="tab-bar">
+          <button class="tab-btn active" id="asst-tab-btn-entry" data-asst-tab="asst-panel-entry">Daily Entry</button>
+          <button class="tab-btn" id="asst-tab-btn-ledger" data-asst-tab="asst-panel-ledger">Site wise Expenses</button>
+        </div>
+
+        <!-- Panel 1: Daily Entry Form -->
+        <div id="asst-panel-entry" class="asst-tab-panel active">
+          <div class="assistant-entry-card">
+            <h2 style="font-size:18px; font-weight:600; margin-bottom:20px;">Daily Expense Entry</h2>
+            <div class="form-group">
+              <label for="asst-site-select">Site</label>
+              <select id="asst-site-select">
+                <option value="">Select a site</option>
+              </select>
+            </div>
+            <form id="asst-expense-form" autocomplete="off">
+              <div class="form-group">
+                <label for="asst-date">Date</label>
+                <input type="date" id="asst-date" required>
+              </div>
+              <div class="form-group">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <label for="asst-desc" style="margin-bottom:0;">Description</label>
+                  <select id="asst-quick-desc" class="desc-quick-select" data-target="asst-desc" style="width:auto; padding:4px 8px; font-size:12px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer;">
+                    <option value="">▼ Select Common Expense</option>
+                    <option value="M-Sand">M-Sand (Msand)</option>
+                    <option value="P-Sand">P-Sand (Psand)</option>
+                    <option value="Bricks">Bricks</option>
+                    <option value="Cement">Cement</option>
+                    <option value="Steel">Steel / TMT</option>
+                    <option value="Mason">Mason</option>
+                    <option value="Helper">Helper / Labour</option>
+                    <option value="JCB">JCB</option>
+                    <option value="River Sand">River Sand</option>
+                    <option value="Gravel / Blue Metal">Gravel / Blue Metal</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Painting">Painting</option>
+                    <option value="Tiles">Tiles / Granite</option>
+                    <option value="Centering / Wood">Centering / Wood</option>
+                    <option value="Water Tanker">Water Tanker</option>
+                    <option value="Transport">Transport / Lorry</option>
+                  </select>
+                </div>
+                <textarea id="asst-desc" rows="2" required placeholder="Type description or select from common expenses above..."></textarea>
+                <div class="quick-fill-row">
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="M-Sand">M-Sand</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="P-Sand">P-Sand</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Bricks">Bricks</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Cement">Cement</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Steel">Steel</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Mason">Mason</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="Helper">Helper</button>
+                  <button type="button" class="quick-fill-btn" data-target="asst-desc" data-fill="JCB">JCB</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="asst-amount">Amount</label>
+                <div class="amount-input-wrapper">
+                  <span class="currency-prefix">&#8377;</span>
+                  <input type="number" id="asst-amount" min="1" step="1" required placeholder="0">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full">Submit Expense</button>
+            </form>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:32px; margin-bottom:12px;">
+              <h3 style="font-size:14px; font-weight:600; margin:0;">Today's Entries</h3>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-switch-to-ledger" style="font-size:12px; padding:3px 10px;">
+                View All Site Expenses &rarr;
+              </button>
+            </div>
+            <div class="table-wrapper">
+              <table id="asst-today-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th style="text-align:right">Amount</th>
+                    <th style="text-align:right; width:130px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="asst-today-tbody">
+                  <tr><td colspan="4" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view entries</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Site-wise Expenses Ledger -->
+        <div id="asst-panel-ledger" class="asst-tab-panel" style="display:none;">
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <div class="site-selector">
+                <select id="asst-ledger-site-select" aria-label="Select site">
+                  <option value="">Select a site</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-sm" id="btn-asst-add-expense">+ Add Expense</button>
+            </div>
+          </div>
+
+          <!-- Site Expense Summary (NO ADVANCES) -->
+          <div class="summary-strip" id="asst-expense-summary" style="display:none;">
+            <div class="summary-item">
+              <div class="summary-label">Site Name</div>
+              <div class="summary-value" id="asst-es-name" style="font-size:15px; font-weight:600;">--</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Total Expenses Logged</div>
+              <div class="summary-value mono text-danger" id="asst-es-total">--</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Total Entries</div>
+              <div class="summary-value mono" id="asst-es-count">--</div>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table id="asst-expenses-table" style="display:none;">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th style="text-align:right">Amount</th>
+                  <th style="text-align:right">Cumulative Total</th>
+                  <th style="text-align:right; width:130px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="asst-expenses-tbody">
+                <tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view expenses</td></tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2" style="text-align:right; font-weight:600;">Total</td>
+                  <td style="text-align:right" class="mono" id="asst-expenses-total">--</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ════════════════════ MODALS ════════════════════ -->
+
+<!-- New Site Modal -->
+<div class="modal-overlay" id="modal-new-site">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add New Site</h3>
+      <button class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <form id="form-new-site" autocomplete="off">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="ns-name">Site Name</label>
+          <input type="text" id="ns-name" required placeholder="e.g. Indira Nagar Villa">
+        </div>
+        <div class="form-group">
+          <label for="ns-client">Client Name</label>
+          <input type="text" id="ns-client" placeholder="e.g. Mr. Ramesh Kumar">
+        </div>
+        <div class="form-group">
+          <label for="ns-date">Start Date</label>
+          <input type="date" id="ns-date">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Create Site</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Site Modal -->
+<div class="modal-overlay" id="modal-edit-site">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Edit Site Details</h3>
+      <button class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <form id="form-edit-site" autocomplete="off">
+      <input type="hidden" id="es-site-id">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="es-site-name">Site Name</label>
+          <input type="text" id="es-site-name" required placeholder="Site Name">
+        </div>
+        <div class="form-group">
+          <label for="es-client-name">Client Name</label>
+          <input type="text" id="es-client-name" placeholder="Client Name">
+        </div>
+        <div class="form-group">
+          <label for="es-site-status">Status</label>
+          <select id="es-site-status">
+            <option value="active">Active</option>
+            <option value="on-hold">On-Hold</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="es-start-date">Start Date</label>
+          <input type="date" id="es-start-date">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div class="modal-overlay" id="modal-add-expense">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Expense</h3>
+      <button class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <form id="form-add-expense" autocomplete="off">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="ae-date">Date</label>
+          <input type="date" id="ae-date" required>
+        </div>
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label for="ae-desc" style="margin-bottom:0;">Description</label>
+            <select id="ae-quick-desc" class="desc-quick-select" data-target="ae-desc" style="width:auto; padding:4px 8px; font-size:12px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer;">
+              <option value="">▼ Select Common Expense</option>
+              <option value="M-Sand">M-Sand (Msand)</option>
+              <option value="P-Sand">P-Sand (Psand)</option>
+              <option value="Bricks">Bricks</option>
+              <option value="Cement">Cement</option>
+              <option value="Steel">Steel / TMT</option>
+              <option value="Mason">Mason</option>
+              <option value="Helper">Helper / Labour</option>
+              <option value="JCB">JCB</option>
+              <option value="River Sand">River Sand</option>
+              <option value="Gravel / Blue Metal">Gravel / Blue Metal</option>
+              <option value="Plumbing">Plumbing</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Painting">Painting</option>
+              <option value="Tiles">Tiles / Granite</option>
+              <option value="Centering / Wood">Centering / Wood</option>
+              <option value="Water Tanker">Water Tanker</option>
+              <option value="Transport">Transport / Lorry</option>
+            </select>
+          </div>
+          <textarea id="ae-desc" rows="2" required placeholder="Type description or select from common expenses above..."></textarea>
+          <div class="quick-fill-row">
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="M-Sand">M-Sand</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="P-Sand">P-Sand</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Bricks">Bricks</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Cement">Cement</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Steel">Steel</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Mason">Mason</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="Helper">Helper</button>
+            <button type="button" class="quick-fill-btn" data-target="ae-desc" data-fill="JCB">JCB</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="ae-amount">Amount (&#8377;)</label>
+          <div class="amount-input-wrapper">
+            <span class="currency-prefix">&#8377;</span>
+            <input type="number" id="ae-amount" min="1" step="1" required placeholder="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Add Expense</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Advance Modal -->
+<div class="modal-overlay" id="modal-add-advance">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Add Advance</h3>
+      <button class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <form id="form-add-advance" autocomplete="off">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="aa-date">Date</label>
+          <input type="date" id="aa-date" required>
+        </div>
+        <div class="form-group">
+          <label for="aa-amount">Amount (&#8377;)</label>
+          <div class="amount-input-wrapper">
+            <span class="currency-prefix">&#8377;</span>
+            <input type="number" id="aa-amount" min="1" step="1" required placeholder="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="aa-notes">Notes</label>
+          <textarea id="aa-notes" rows="2" placeholder="Optional notes"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Add Advance</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Expense Modal -->
+<div class="modal-overlay" id="modal-edit-expense">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Edit Expense</h3>
+      <button class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <form id="form-edit-expense" autocomplete="off">
+      <input type="hidden" id="ee-id">
+      <input type="hidden" id="ee-site-id">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="ee-date">Date</label>
+          <input type="date" id="ee-date" required>
+        </div>
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label for="ee-desc" style="margin-bottom:0;">Description</label>
+            <select id="ee-quick-desc" class="desc-quick-select" data-target="ee-desc" style="width:auto; padding:4px 8px; font-size:12px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer;">
+              <option value="">▼ Select Common Expense</option>
+              <option value="M-Sand">M-Sand (Msand)</option>
+              <option value="P-Sand">P-Sand (Psand)</option>
+              <option value="Bricks">Bricks</option>
+              <option value="Cement">Cement</option>
+              <option value="Steel">Steel / TMT</option>
+              <option value="Mason">Mason</option>
+              <option value="Helper">Helper / Labour</option>
+              <option value="JCB">JCB</option>
+              <option value="River Sand">River Sand</option>
+              <option value="Gravel / Blue Metal">Gravel / Blue Metal</option>
+              <option value="Plumbing">Plumbing</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Painting">Painting</option>
+              <option value="Tiles">Tiles / Granite</option>
+              <option value="Centering / Wood">Centering / Wood</option>
+              <option value="Water Tanker">Water Tanker</option>
+              <option value="Transport">Transport / Lorry</option>
+            </select>
+          </div>
+          <textarea id="ee-desc" rows="2" required placeholder="Expense details (Type or select from dropdown above)"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="ee-amount">Amount (&#8377;)</label>
+          <div class="amount-input-wrapper">
+            <span class="currency-prefix">&#8377;</span>
+            <input type="number" id="ee-amount" min="1" step="1" required placeholder="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline btn-sm modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="modal-confirm-delete">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Confirm Deletion</h3>
+      <button class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="delete-modal-msg" style="color:var(--secondary);">Are you sure you want to delete this entry? This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline btn-sm modal-cancel">Cancel</button>
+      <button type="button" class="btn btn-danger btn-sm" id="confirm-delete-btn">Confirm Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── Helpers ──
+  var API_BASE = window.location.origin;
+
+  var rupee = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  });
+
+  function formatCurrency(n) {
+    return rupee.format(n || 0);
+  }
+
+  function formatDateDisplay(dateStr) {
+    if (!dateStr) return '--';
+    var parts = dateStr.split('T')[0].split('-');
+    if (parts.length !== 3) return dateStr;
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function getToken() { return sessionStorage.getItem('cf_token'); }
+  function getRole() { return sessionStorage.getItem('cf_role'); }
+  function getUsername() { return sessionStorage.getItem('cf_username'); }
+
+  function authHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + getToken()
+    };
+  }
+
+  function authHeadersNoBody() {
+    return {
+      'Authorization': 'Bearer ' + getToken()
+    };
+  }
+
+  async function apiFetch(url, options) {
+    options = options || {};
+    if (!options.headers) {
+      options.headers = options.body ? authHeaders() : authHeadersNoBody();
+    }
+    var res = await fetch(API_BASE + url, options);
+    if (res.status === 401) {
+      sessionStorage.clear();
+      showLogin();
+      throw new Error('Session expired');
+    }
+    return res;
+  }
+
+  // ── Toast ──
+  function showToast(message, type) {
+    type = type || 'success';
+    var container = document.getElementById('toast-container');
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(8px)';
+      toast.style.transition = 'opacity 0.2s, transform 0.2s';
+      setTimeout(function() { toast.remove(); }, 200);
+    }, 3000);
+  }
+
+  // ── Modal Helpers ──
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  document.querySelectorAll('.modal-close, .modal-cancel').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      btn.closest('.modal-overlay').classList.remove('open');
+    });
+  });
+
+  document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.classList.remove('open');
+    });
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.open').forEach(function(m) {
+        m.classList.remove('open');
+      });
+    }
+  });
+
+  // ── Screen Switching ──
+  function showLogin() {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display = 'none';
+  }
+
+  function showApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('header-username').textContent = getUsername();
+    document.getElementById('header-role').textContent = getRole();
+
+    if (getRole() === 'owner') {
+      document.getElementById('owner-view').style.display = 'block';
+      document.getElementById('assistant-view').style.display = 'none';
+      loadOwnerData();
+    } else {
+      document.getElementById('owner-view').style.display = 'none';
+      document.getElementById('assistant-view').style.display = 'block';
+      loadAssistantSites();
+    }
+  }
+
+  // ── LOGIN ──
+  var loginForm = document.getElementById('login-form');
+  var loginError = document.getElementById('login-error');
+
+  loginForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    loginError.style.display = 'none';
+    var username = document.getElementById('login-username').value.trim();
+    var password = document.getElementById('login-password').value;
+
+    if (!username || !password) {
+      loginError.textContent = 'Please enter both User ID and Password.';
+      loginError.style.display = 'block';
+      return;
+    }
+
+    var loginBtn = document.getElementById('login-btn');
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Signing in...';
+
+    try {
+      var res = await fetch(API_BASE + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, password: password })
+      });
+      var data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'Invalid credentials');
+      }
+      sessionStorage.setItem('cf_token', data.token);
+      sessionStorage.setItem('cf_role', data.role);
+      sessionStorage.setItem('cf_username', data.username);
+      showApp();
+    } catch (err) {
+      loginError.textContent = err.message;
+      loginError.style.display = 'block';
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Sign In';
+    }
+  });
+
+  // Password toggle
+  document.getElementById('pw-toggle').addEventListener('click', function() {
+    var input = document.getElementById('login-password');
+    var isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    this.innerHTML = isPassword
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    this.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+  });
+
+  // Logout
+  document.getElementById('logout-btn').addEventListener('click', function() {
+    sessionStorage.clear();
+    showLogin();
+    loginForm.reset();
+    loginError.style.display = 'none';
+  });
+
+  // ── OWNER: Tab Switching ──
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Keep site selectors in sync ──
+  var expenseSiteSelect = document.getElementById('expense-site-select');
+  var advanceSiteSelect = document.getElementById('advance-site-select');
+  var selectedSiteId = '';
+
+  expenseSiteSelect.addEventListener('change', function() {
+    selectedSiteId = this.value;
+    advanceSiteSelect.value = selectedSiteId;
+    if (selectedSiteId) {
+      loadExpenses(selectedSiteId);
+      loadExpenseSummary(selectedSiteId);
+    } else {
+      clearExpensesTable();
+    }
+  });
+
+  advanceSiteSelect.addEventListener('change', function() {
+    selectedSiteId = this.value;
+    expenseSiteSelect.value = selectedSiteId;
+    if (selectedSiteId) {
+      loadAdvances(selectedSiteId);
+      loadExpenses(selectedSiteId);
+      loadExpenseSummary(selectedSiteId);
+    } else {
+      clearAdvancesTable();
+    }
+  });
+
+  // ── OWNER: Load Data ──
+  var summaryData = [];
+
+  async function loadOwnerData() {
+    await loadSummary();
+    await loadSiteDropdowns();
+  }
+
+  async function loadSummary() {
+    try {
+      var res = await apiFetch('/api/sites/summary');
+      summaryData = await res.json();
+      renderProjectsTable(summaryData);
+      renderMetrics(summaryData);
+    } catch (err) {
+      showToast('Failed to load summary: ' + err.message, 'error');
+    }
+  }
+
+  function renderMetrics(data) {
+    var totalAdv = 0, totalExp = 0, activeCount = 0;
+    data.forEach(function(s) {
+      totalAdv += Number(s.total_advance) || 0;
+      totalExp += Number(s.total_expenses) || 0;
+      if (s.status === 'active') activeCount++;
+    });
+    var balance = totalAdv - totalExp;
+
+    document.getElementById('m-advance').textContent = formatCurrency(totalAdv);
+    document.getElementById('m-expenses').textContent = formatCurrency(totalExp);
+
+    var balEl = document.getElementById('m-balance');
+    balEl.textContent = formatCurrency(balance);
+    balEl.className = 'metric-value mono' + (balance >= 0 ? ' positive' : ' negative');
+
+    document.getElementById('m-active').textContent = activeCount;
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  function renderProjectsTable(data) {
+    var tbody = document.getElementById('projects-tbody');
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--secondary); padding:24px;">No sites found. Add your first site to get started.</td></tr>';
+      return;
+    }
+
+    var html = '';
+    data.forEach(function(s) {
+      var balance = Number(s.difference) || 0;
+      var totalAdv = Number(s.total_advance) || 0;
+      var totalExp = Number(s.total_expenses) || 0;
+      var pct = totalAdv > 0 ? Math.min(100, Math.round((totalExp / totalAdv) * 100)) : 0;
+
+      var barColor = pct < 70 ? 'var(--success)' : pct < 90 ? 'var(--warning)' : 'var(--danger)';
+      var balanceClass = balance >= 0 ? 'text-success' : 'text-danger';
+
+      var statusClass = 'badge-active';
+      var statusLabel = s.status || 'active';
+      if (statusLabel === 'completed') statusClass = 'badge-completed';
+      else if (statusLabel === 'on-hold' || statusLabel === 'onhold') statusClass = 'badge-onhold';
+
+      html += '<tr>';
+      html += '<td>' + escapeHtml(String(s.site_id || '--')) + '</td>';
+      html += '<td style="font-weight:500;">' + escapeHtml(s.site_name || '') + '</td>';
+      html += '<td>' + escapeHtml(s.client_name || '--') + '</td>';
+      html += '<td><span class="badge ' + statusClass + '">' + escapeHtml(statusLabel) + '</span></td>';
+      html += '<td style="text-align:right" class="mono">' + formatCurrency(totalAdv) + '</td>';
+      html += '<td style="text-align:right" class="mono">' + formatCurrency(totalExp) + '</td>';
+      html += '<td style="text-align:right" class="mono ' + balanceClass + '">' + formatCurrency(balance) + '</td>';
+      html += '<td>';
+      html += '<span class="util-bar"><span class="util-bar-fill" style="width:' + pct + '%; background:' + barColor + '"></span></span>';
+      html += '<span class="util-text">' + pct + '%</span>';
+      html += '</td>';
+      html += '<td style="text-align:right; white-space:nowrap;">';
+      html += '<button class="btn btn-outline btn-sm btn-edit-site" data-edit-site="' + s.site_id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+      html += '<button class="btn btn-danger btn-sm btn-delete-site" data-delete-site="' + s.site_id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+      html += '</td>';
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
+
+    tbody.querySelectorAll('[data-edit-site]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        openEditSiteModal(btn.dataset.editSite);
+      });
+    });
+
+    tbody.querySelectorAll('[data-delete-site]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        pendingDeleteType = 'site';
+        pendingDeleteId = btn.dataset.deleteSite;
+        document.getElementById('delete-modal-msg').textContent = 'Are you sure you want to permanently delete site ' + pendingDeleteId + ' and all its recorded advances and expenses? This action cannot be undone.';
+        openModal('modal-confirm-delete');
+      });
+    });
+  }
+
+  async function loadSiteDropdowns() {
+    try {
+      var res = await apiFetch('/api/sites');
+      var sites = await res.json();
+      var options = '<option value="">Select a site</option>';
+      sites.forEach(function(s) {
+        options += '<option value="' + s.site_id + '">' + escapeHtml(s.site_name) + '</option>';
+      });
+      expenseSiteSelect.innerHTML = options;
+      advanceSiteSelect.innerHTML = options;
+
+      if (selectedSiteId) {
+        expenseSiteSelect.value = selectedSiteId;
+        advanceSiteSelect.value = selectedSiteId;
+      }
+    } catch (err) {
+      showToast('Failed to load sites', 'error');
+    }
+  }
+
+  // ── OWNER: Expenses ──
+  function clearExpensesTable() {
+    document.getElementById('expenses-table').style.display = 'none';
+    document.getElementById('expense-summary').style.display = 'none';
+  }
+
+  function loadExpenseSummary(siteId) {
+    var site = summaryData.find(function(s) { return String(s.site_id) === String(siteId); });
+    if (site) {
+      document.getElementById('expense-summary').style.display = 'flex';
+      var adv = Number(site.total_advance) || 0;
+      var exp = Number(site.total_expenses) || 0;
+      var rem = adv - exp;
+      document.getElementById('es-advance').textContent = formatCurrency(adv);
+      document.getElementById('es-spent').textContent = formatCurrency(exp);
+      var remEl = document.getElementById('es-remaining');
+      remEl.textContent = formatCurrency(rem);
+      remEl.className = 'summary-value mono' + (rem >= 0 ? ' text-success' : ' text-danger');
+    }
+  }
+
+  var expenseStore = {};
+
+  function openEditExpenseModal(expense, siteId) {
+    document.getElementById('ee-id').value = expense.id;
+    document.getElementById('ee-site-id').value = siteId || expense.site_id || '';
+    var dateStr = '';
+    if (expense.expense_date) {
+      dateStr = String(expense.expense_date).slice(0, 10);
+    }
+    document.getElementById('ee-date').value = dateStr;
+    document.getElementById('ee-desc').value = expense.description || '';
+    document.getElementById('ee-amount').value = expense.amount || '';
+    openModal('modal-edit-expense');
+  }
+
+  function attachExpenseListeners(tbody, siteId) {
+    tbody.querySelectorAll('[data-edit-expense]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var ex = expenseStore[btn.dataset.editExpense];
+        if (ex) openEditExpenseModal(ex, siteId);
+      });
+    });
+
+    tbody.querySelectorAll('[data-delete-expense]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        pendingDeleteType = 'expense';
+        pendingDeleteId = btn.dataset.deleteExpense;
+        document.getElementById('delete-modal-msg').textContent = 'Are you sure you want to delete this expense? This action cannot be undone.';
+        openModal('modal-confirm-delete');
+      });
+    });
+  }
+
+  async function loadExpenses(siteId) {
+    try {
+      var res = await apiFetch('/api/sites/' + siteId + '/expenses');
+      var expenses = await res.json();
+      document.getElementById('expenses-table').style.display = 'table';
+
+      var tbody = document.getElementById('expenses-tbody');
+      if (expenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">No expenses recorded yet.</td></tr>';
+        document.getElementById('expenses-total').textContent = formatCurrency(0);
+        return;
+      }
+
+      var html = '';
+      var total = 0;
+      expenses.forEach(function(ex) {
+        expenseStore[ex.id] = ex;
+        var amt = Number(ex.amount) || 0;
+        total += amt;
+        html += '<tr>';
+        html += '<td style="white-space:nowrap">' + formatDateDisplay(ex.expense_date) + '</td>';
+        html += '<td>' + escapeHtml(ex.description || '') + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(amt) + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(ex.cumulative_expense) + '</td>';
+        html += '<td style="text-align:right; white-space:nowrap;">';
+        html += '<button class="btn btn-outline btn-sm btn-edit-expense" data-edit-expense="' + ex.id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+        html += '<button class="btn btn-danger btn-sm btn-delete-expense" data-delete-expense="' + ex.id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+        html += '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      document.getElementById('expenses-total').textContent = formatCurrency(total);
+      attachExpenseListeners(tbody, siteId);
+    } catch (err) {
+      showToast('Failed to load expenses: ' + err.message, 'error');
+    }
+  }
+
+  // ── OWNER: Advances ──
+  function clearAdvancesTable() {
+    document.getElementById('advances-table').style.display = 'none';
+  }
+
+  async function loadAdvances(siteId) {
+    try {
+      var res = await apiFetch('/api/sites/' + siteId + '/advances');
+      var advances = await res.json();
+      document.getElementById('advances-table').style.display = 'table';
+
+      var tbody = document.getElementById('advances-tbody');
+      if (advances.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">No advances recorded yet.</td></tr>';
+        document.getElementById('advances-total').textContent = formatCurrency(0);
+        return;
+      }
+
+      var html = '';
+      var total = 0;
+      advances.forEach(function(adv) {
+        var amt = Number(adv.amount) || 0;
+        total += amt;
+        html += '<tr>';
+        html += '<td style="white-space:nowrap">' + formatDateDisplay(adv.payment_date) + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(amt) + '</td>';
+        html += '<td>' + escapeHtml(adv.notes || '--') + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(adv.cumulative_advance) + '</td>';
+        html += '<td><button class="btn btn-danger" data-delete-advance="' + adv.id + '" aria-label="Delete advance">Delete</button></td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      document.getElementById('advances-total').textContent = formatCurrency(total);
+
+      tbody.querySelectorAll('[data-delete-advance]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          pendingDeleteType = 'advance';
+          pendingDeleteId = btn.dataset.deleteAdvance;
+          openModal('modal-confirm-delete');
+        });
+      });
+    } catch (err) {
+      showToast('Failed to load advances: ' + err.message, 'error');
+    }
+  }
+
+  // ── Delete Confirmation ──
+  var pendingDeleteType = '';
+  var pendingDeleteId = '';
+
+  document.getElementById('confirm-delete-btn').addEventListener('click', async function() {
+    if (!pendingDeleteId) return;
+
+    var url = pendingDeleteType === 'expense'
+      ? '/api/expenses/' + pendingDeleteId
+      : pendingDeleteType === 'site'
+      ? '/api/sites/' + pendingDeleteId
+      : '/api/advances/' + pendingDeleteId;
+
+    try {
+      var res = await apiFetch(url, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      var msg = pendingDeleteType === 'expense'
+        ? 'Expense deleted'
+        : pendingDeleteType === 'site'
+        ? 'Site and all records deleted'
+        : 'Advance deleted';
+      showToast(msg, 'success');
+      closeModal('modal-confirm-delete');
+
+      if (pendingDeleteType === 'site') {
+        if (selectedSiteId === pendingDeleteId) {
+          selectedSiteId = '';
+          clearExpensesTable();
+          clearAdvancesTable();
+        }
+        await loadSummary();
+        await loadSiteDropdowns();
+      } else if (pendingDeleteType === 'expense') {
+        if (getRole() === 'owner') {
+          if (selectedSiteId) {
+            loadExpenses(selectedSiteId);
+          }
+          await loadSummary();
+          if (selectedSiteId) {
+            loadExpenseSummary(selectedSiteId);
+          }
+        } else {
+          var asstSite = asstSelectedSiteId || asstSiteSelect.value;
+          if (asstSite) {
+            await loadTodayExpenses(asstSite);
+            await loadAssistantSiteExpenses(asstSite);
+          }
+        }
+      } else {
+        if (selectedSiteId) {
+          loadAdvances(selectedSiteId);
+        }
+        await loadSummary();
+        if (selectedSiteId) {
+          loadExpenseSummary(selectedSiteId);
+        }
+      }
+    } catch (err) {
+      showToast('Delete failed: ' + err.message, 'error');
+    }
+
+    pendingDeleteType = '';
+    pendingDeleteId = '';
+  });
+
+  // ── Edit Site Form ──
+  function openEditSiteModal(siteId) {
+    var site = summaryData.find(function(s) { return String(s.site_id) === String(siteId); });
+    if (!site) return;
+    document.getElementById('es-site-id').value = site.site_id;
+    document.getElementById('es-site-name').value = site.site_name || '';
+    document.getElementById('es-client-name').value = site.client_name || '';
+    document.getElementById('es-site-status').value = site.status || 'active';
+
+    var dateVal = '';
+    if (site.start_date) {
+      try {
+        dateVal = new Date(site.start_date).toISOString().slice(0, 10);
+      } catch (err) {
+        dateVal = String(site.start_date).slice(0, 10);
+      }
+    }
+    document.getElementById('es-start-date').value = dateVal;
+    openModal('modal-edit-site');
+  }
+
+  document.getElementById('form-edit-site').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var siteId = document.getElementById('es-site-id').value;
+    var siteName = document.getElementById('es-site-name').value.trim();
+    var clientName = document.getElementById('es-client-name').value.trim();
+    var status = document.getElementById('es-site-status').value;
+    var startDate = document.getElementById('es-start-date').value;
+
+    if (!siteName) {
+      showToast('Site name is required', 'error');
+      return;
+    }
+
+    try {
+      var res = await apiFetch('/api/sites/' + siteId, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          site_name: siteName,
+          client_name: clientName,
+          status: status,
+          start_date: startDate || null
+        })
+      });
+      if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        throw new Error(errData.message || errData.error || 'Failed to update site');
+      }
+      showToast('Site details updated', 'success');
+      closeModal('modal-edit-site');
+      await loadSummary();
+      await loadSiteDropdowns();
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  });
+
+  // ── Edit Expense Form ──
+  document.getElementById('form-edit-expense').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var id = document.getElementById('ee-id').value;
+    var expDate = document.getElementById('ee-date').value;
+    var desc = document.getElementById('ee-desc').value.trim();
+    var amount = Number(document.getElementById('ee-amount').value);
+
+    if (!expDate || !desc || !amount) {
+      showToast('All fields are required', 'error');
+      return;
+    }
+
+    try {
+      var res = await apiFetch('/api/expenses/' + id, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          expense_date: expDate,
+          description: desc,
+          amount: amount
+        })
+      });
+      if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        throw new Error(errData.message || errData.error || 'Failed to update expense');
+      }
+      showToast('Expense updated successfully', 'success');
+      closeModal('modal-edit-expense');
+
+      if (getRole() === 'owner') {
+        if (selectedSiteId) {
+          loadExpenses(selectedSiteId);
+        }
+        await loadSummary();
+        if (selectedSiteId) {
+          loadExpenseSummary(selectedSiteId);
+        }
+      } else {
+        var asstSite = asstSelectedSiteId || asstSiteSelect.value;
+        if (asstSite) {
+          await loadTodayExpenses(asstSite);
+          await loadAssistantSiteExpenses(asstSite);
+        }
+      }
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  });
+
+  // ── New Site Form ──
+  document.getElementById('btn-new-site').addEventListener('click', function() {
+    document.getElementById('form-new-site').reset();
+    document.getElementById('ns-date').value = todayISO();
+    openModal('modal-new-site');
+  });
+
+  document.getElementById('form-new-site').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var siteName = document.getElementById('ns-name').value.trim();
+    var clientName = document.getElementById('ns-client').value.trim();
+    var startDate = document.getElementById('ns-date').value;
+
+    if (!siteName) {
+      showToast('Site name is required', 'error');
+      return;
+    }
+
+    try {
+      var res = await apiFetch('/api/sites', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          site_name: siteName,
+          client_name: clientName,
+          start_date: startDate || null
+        })
+      });
+      if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        throw new Error(errData.message || errData.error || 'Failed to create site');
+      }
+      showToast('Site created successfully', 'success');
+      closeModal('modal-new-site');
+      await loadSummary();
+      await loadSiteDropdowns();
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  });
+
+  // ── Add Expense Form ──
+  document.getElementById('btn-add-expense').addEventListener('click', function() {
+    if (!selectedSiteId) {
+      showToast('Please select a site first', 'error');
+      return;
+    }
+    document.getElementById('form-add-expense').reset();
+    document.getElementById('ae-date').value = todayISO();
+    openModal('modal-add-expense');
+  });
+
+  document.getElementById('form-add-expense').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var expDate = document.getElementById('ae-date').value;
+    var desc = document.getElementById('ae-desc').value.trim();
+    var amount = Number(document.getElementById('ae-amount').value);
+
+    if (!expDate || !desc || !amount) {
+      showToast('All fields are required', 'error');
+      return;
+    }
+
+    try {
+      var res = await apiFetch('/api/sites/' + selectedSiteId + '/expenses', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          expense_date: expDate,
+          description: desc,
+          amount: amount
+        })
+      });
+      if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        throw new Error(errData.message || errData.error || 'Failed to add expense');
+      }
+      showToast('Expense added', 'success');
+      closeModal('modal-add-expense');
+      loadExpenses(selectedSiteId);
+      await loadSummary();
+      loadExpenseSummary(selectedSiteId);
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  });
+
+  // ── Add Advance Form ──
+  document.getElementById('btn-add-advance').addEventListener('click', function() {
+    if (!selectedSiteId) {
+      showToast('Please select a site first', 'error');
+      return;
+    }
+    document.getElementById('form-add-advance').reset();
+    document.getElementById('aa-date').value = todayISO();
+    openModal('modal-add-advance');
+  });
+
+  document.getElementById('form-add-advance').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var payDate = document.getElementById('aa-date').value;
+    var amount = Number(document.getElementById('aa-amount').value);
+    var notes = document.getElementById('aa-notes').value.trim();
+
+    if (!payDate || !amount) {
+      showToast('Date and amount are required', 'error');
+      return;
+    }
+
+    try {
+      var res = await apiFetch('/api/sites/' + selectedSiteId + '/advances', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          payment_date: payDate,
+          amount: amount,
+          notes: notes
+        })
+      });
+      if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        throw new Error(errData.message || errData.error || 'Failed to add advance');
+      }
+      showToast('Advance added', 'success');
+      closeModal('modal-add-advance');
+      loadAdvances(selectedSiteId);
+      await loadSummary();
+      loadExpenseSummary(selectedSiteId);
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  });
+
+  // ── Export Buttons ──
+  document.getElementById('btn-export-all').addEventListener('click', async function() {
+    try {
+      var res = await apiFetch('/api/export/all');
+      if (!res.ok) throw new Error('Export failed');
+      var blob = await res.blob();
+      downloadBlob(blob, 'ContractFlow_Summary.xlsx');
+      showToast('Summary exported', 'success');
+    } catch (err) {
+      showToast('Export failed: ' + err.message, 'error');
+    }
+  });
+
+  document.getElementById('btn-export-site').addEventListener('click', async function() {
+    if (!selectedSiteId) {
+      showToast('Please select a site first', 'error');
+      return;
+    }
+    try {
+      var res = await apiFetch('/api/sites/' + selectedSiteId + '/export');
+      if (!res.ok) throw new Error('Export failed');
+      var blob = await res.blob();
+      downloadBlob(blob, 'Site_Ledger_' + selectedSiteId + '.xlsx');
+      showToast('Ledger exported', 'success');
+    } catch (err) {
+      showToast('Export failed: ' + err.message, 'error');
+    }
+  });
+
+  function downloadBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ── ASSISTANT VIEW ──
+  var asstSiteSelect = document.getElementById('asst-site-select');
+  var asstLedgerSiteSelect = document.getElementById('asst-ledger-site-select');
+  var asstSelectedSiteId = '';
+
+  // Tab switching for Assistant
+  document.querySelectorAll('[data-asst-tab]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('[data-asst-tab]').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.asst-tab-panel').forEach(function(p) { p.classList.remove('active'); p.style.display = 'none'; });
+      btn.classList.add('active');
+      var target = document.getElementById(btn.dataset.asstTab);
+      if (target) {
+        target.classList.add('active');
+        target.style.display = 'block';
+      }
+    });
+  });
+
+  document.getElementById('btn-switch-to-ledger').addEventListener('click', function() {
+    var ledgerBtn = document.getElementById('asst-tab-btn-ledger');
+    if (ledgerBtn) ledgerBtn.click();
+  });
+
+  document.getElementById('btn-asst-add-expense').addEventListener('click', function() {
+    var entryBtn = document.getElementById('asst-tab-btn-entry');
+    if (entryBtn) entryBtn.click();
+  });
+
+  async function loadAssistantSites() {
+    try {
+      var res = await apiFetch('/api/sites');
+      var sites = await res.json();
+      var options = '<option value="">Select a site</option>';
+      sites.forEach(function(s) {
+        options += '<option value="' + s.site_id + '">' + escapeHtml(s.site_name) + '</option>';
+      });
+      asstSiteSelect.innerHTML = options;
+      asstLedgerSiteSelect.innerHTML = options;
+
+      if (!asstSelectedSiteId && sites.length > 0) {
+        asstSelectedSiteId = sites[0].site_id;
+      }
+
+      if (asstSelectedSiteId) {
+        asstSiteSelect.value = asstSelectedSiteId;
+        asstLedgerSiteSelect.value = asstSelectedSiteId;
+        loadTodayExpenses(asstSelectedSiteId);
+        loadAssistantSiteExpenses(asstSelectedSiteId);
+      }
+    } catch (err) {
+      showToast('Failed to load sites', 'error');
+    }
+    // Set default date
+    document.getElementById('asst-date').value = todayISO();
+  }
+
+  function clearAssistantTables() {
+    document.getElementById('asst-today-tbody').innerHTML =
+      '<tr><td colspan="4" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view entries</td></tr>';
+    document.getElementById('asst-expenses-tbody').innerHTML =
+      '<tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">Select a site to view expenses</td></tr>';
+    document.getElementById('asst-expenses-table').style.display = 'none';
+    document.getElementById('asst-expense-summary').style.display = 'none';
+  }
+
+  asstSiteSelect.addEventListener('change', function() {
+    asstSelectedSiteId = this.value;
+    asstLedgerSiteSelect.value = asstSelectedSiteId;
+    if (asstSelectedSiteId) {
+      loadTodayExpenses(asstSelectedSiteId);
+      loadAssistantSiteExpenses(asstSelectedSiteId);
+    } else {
+      clearAssistantTables();
+    }
+  });
+
+  asstLedgerSiteSelect.addEventListener('change', function() {
+    asstSelectedSiteId = this.value;
+    asstSiteSelect.value = asstSelectedSiteId;
+    if (asstSelectedSiteId) {
+      loadTodayExpenses(asstSelectedSiteId);
+      loadAssistantSiteExpenses(asstSelectedSiteId);
+    } else {
+      clearAssistantTables();
+    }
+  });
+
+  async function loadTodayExpenses(siteId) {
+    try {
+      var res = await apiFetch('/api/sites/' + siteId + '/expenses/today');
+      var entries = await res.json();
+      var tbody = document.getElementById('asst-today-tbody');
+
+      if (entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--secondary); padding:20px;">No entries yet today.</td></tr>';
+        return;
+      }
+
+      var html = '';
+      entries.forEach(function(e) {
+        expenseStore[e.id] = e;
+        html += '<tr>';
+        html += '<td style="white-space:nowrap">' + formatDateDisplay(e.expense_date) + '</td>';
+        html += '<td>' + escapeHtml(e.description || '') + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(e.amount) + '</td>';
+        html += '<td style="text-align:right; white-space:nowrap;">';
+        html += '<button class="btn btn-outline btn-sm btn-edit-expense" data-edit-expense="' + e.id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+        html += '<button class="btn btn-danger btn-sm btn-delete-expense" data-delete-expense="' + e.id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+        html += '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      attachExpenseListeners(tbody, siteId);
+    } catch (err) {
+      showToast('Failed to load today\'s entries', 'error');
+    }
+  }
+
+  async function loadAssistantSiteExpenses(siteId) {
+    try {
+      var res = await apiFetch('/api/sites/' + siteId + '/expenses');
+      var expenses = await res.json();
+
+      var table = document.getElementById('asst-expenses-table');
+      var summary = document.getElementById('asst-expense-summary');
+      table.style.display = 'table';
+      summary.style.display = 'flex';
+
+      var siteOption = asstSiteSelect.querySelector('option[value="' + siteId + '"]');
+      var siteName = siteOption ? siteOption.textContent : siteId;
+      document.getElementById('asst-es-name').textContent = siteName;
+
+      var tbody = document.getElementById('asst-expenses-tbody');
+      if (expenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">No expenses recorded yet for this site.</td></tr>';
+        document.getElementById('asst-expenses-total').textContent = formatCurrency(0);
+        document.getElementById('asst-es-total').textContent = formatCurrency(0);
+        document.getElementById('asst-es-count').textContent = '0 entries';
+        return;
+      }
+
+      var html = '';
+      var total = 0;
+      expenses.forEach(function(ex) {
+        expenseStore[ex.id] = ex;
+        var amt = Number(ex.amount) || 0;
+        total += amt;
+        html += '<tr>';
+        html += '<td style="white-space:nowrap">' + formatDateDisplay(ex.expense_date) + '</td>';
+        html += '<td>' + escapeHtml(ex.description || '') + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(amt) + '</td>';
+        html += '<td style="text-align:right" class="mono">' + formatCurrency(ex.cumulative_expense) + '</td>';
+        html += '<td style="text-align:right; white-space:nowrap;">';
+        html += '<button class="btn btn-outline btn-sm btn-edit-expense" data-edit-expense="' + ex.id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+        html += '<button class="btn btn-danger btn-sm btn-delete-expense" data-delete-expense="' + ex.id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+        html += '</td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      document.getElementById('asst-expenses-total').textContent = formatCurrency(total);
+      document.getElementById('asst-es-total').textContent = formatCurrency(total);
+      document.getElementById('asst-es-count').textContent = expenses.length + ' entries';
+
+      attachExpenseListeners(tbody, siteId);
+    } catch (err) {
+      showToast('Failed to load site expenses: ' + err.message, 'error');
+    }
+  }
+
+  // Helper to append or set common expense text into a textarea
+  function appendExpenseDesc(textarea, val) {
+    if (!textarea || !val) return;
+    var current = textarea.value.trim();
+    if (current) {
+      textarea.value = current + ', ' + val;
+    } else {
+      textarea.value = val;
+    }
+    textarea.focus();
+    if (typeof textarea.setSelectionRange === 'function') {
+      var len = textarea.value.length;
+      textarea.setSelectionRange(len, len);
+    }
+  }
+
+  // Quick-fill buttons
+  document.querySelectorAll('.quick-fill-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var targetId = btn.dataset.target || 'asst-desc';
+      var textarea = document.getElementById(targetId);
+      appendExpenseDesc(textarea, btn.dataset.fill);
+    });
+  });
+
+  // Dropdown quick-selects for description
+  document.querySelectorAll('.desc-quick-select').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+      var val = this.value;
+      if (!val) return;
+      var targetId = sel.dataset.target || (sel.id === 'ae-quick-desc' ? 'ae-desc' : sel.id === 'ee-quick-desc' ? 'ee-desc' : 'asst-desc');
+      var textarea = document.getElementById(targetId);
+      appendExpenseDesc(textarea, val);
+      sel.value = ''; // Reset dropdown so the same or another option can be selected again
+    });
+  });
+
+  // Assistant expense form
+  document.getElementById('asst-expense-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var siteId = asstSiteSelect.value;
+    if (!siteId) {
+      showToast('Please select a site first', 'error');
+      return;
+    }
+
+    var expDate = document.getElementById('asst-date').value;
+    var desc = document.getElementById('asst-desc').value.trim();
+    var amount = Number(document.getElementById('asst-amount').value);
+
+    if (!expDate || !desc || !amount) {
+      showToast('All fields are required', 'error');
+      return;
+    }
+
+    try {
+      var res = await apiFetch('/api/sites/' + siteId + '/expenses', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          expense_date: expDate,
+          description: desc,
+          amount: amount
+        })
+      });
+      if (!res.ok) {
+        var errData = await res.json().catch(function() { return {}; });
+        throw new Error(errData.message || errData.error || 'Failed to submit');
+      }
+      showToast('Expense submitted', 'success');
+      document.getElementById('asst-desc').value = '';
+      var asstQuick = document.getElementById('asst-quick-desc');
+      if (asstQuick) asstQuick.value = '';
+      document.getElementById('asst-amount').value = '';
+      document.getElementById('asst-date').value = todayISO();
+      await loadTodayExpenses(siteId);
+      await loadAssistantSiteExpenses(siteId);
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  });
+
+  // ── Session Restore ──
+  if (getToken() && getRole()) {
+    showApp();
+  } else {
+    showLogin();
+  }
+
+})();
+</script>
+</body>
+</html>
