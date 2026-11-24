@@ -10,6 +10,7 @@ const fs        = require('fs');
 const XLSX      = require('xlsx');
 const helmet    = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { saveExpenseImage, getDriveMode } = require('./googleDriveService');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -68,7 +69,7 @@ app.use(helmet({
       scriptSrc     : ["'self'", "'unsafe-inline'"],
       styleSrc      : ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc       : ["'self'", "https://fonts.gstatic.com"],
-      imgSrc        : ["'self'", "data:", "https://img.icons8.com"],
+      imgSrc        : ["'self'", "data:", "blob:", "https://img.icons8.com", "https://drive.google.com", "https://*.googleusercontent.com"],
       connectSrc    : ["'self'"],
       frameAncestors: ["'none'"],
     }
@@ -90,7 +91,8 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ limit: '15mb', extended: true }));
 
 // ─── SEC-006 FIX: Serve only the public/ subdirectory ────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
@@ -301,34 +303,109 @@ app.get('/api/sites/:id/expenses', anyRole, async (req, res) => {
 
 // POST /api/sites/:id/expenses
 app.post('/api/sites/:id/expenses', anyRole, async (req, res) => {
-  const { expense_date, description, amount } = req.body;
+  const { expense_date, description, amount, image, receipt_url } = req.body;
   if (!expense_date || !description || amount == null)
     return res.status(400).json({ error: 'expense_date, description and amount are required' });
   const validAmount = parseAmount(amount);
   if (validAmount === null) return res.status(400).json({ error: 'Amount must be a positive number up to 99,999,999' });
+
+  let finalReceiptUrl = receipt_url || null;
+
+  // Process image upload if attached (base64)
+  if (image && image.data) {
+    try {
+      const siteRes = await pool.query('SELECT site_name FROM sites WHERE site_id=$1', [req.params.id]);
+      const siteName = siteRes.rows[0] ? siteRes.rows[0].site_name : req.params.id;
+
+      const uploadRes = await saveExpenseImage({
+        siteId: req.params.id,
+        siteName: siteName,
+        description: description,
+        expenseDate: expense_date,
+        imageBase64: image.data,
+        mimeType: image.type || 'image/jpeg'
+      });
+
+      if (uploadRes && uploadRes.viewUrl) {
+        finalReceiptUrl = uploadRes.viewUrl;
+      }
+    } catch (imgErr) {
+      console.error('[IMAGE UPLOAD ERROR]:', imgErr.message);
+      // Non-blocking: expense record creation still proceeds
+    }
+  }
+
   try {
-    const r = await pool.query(
-      'INSERT INTO expenses (site_id, expense_date, description, amount) VALUES ($1, $2, $3, $4) RETURNING id',
-      [req.params.id, expense_date, description, validAmount]
-    );
-    res.status(201).json({ id: r.rows[0].id });
+    let r;
+    try {
+      r = await pool.query(
+        'INSERT INTO expenses (site_id, expense_date, description, amount, receipt_url) VALUES ($1, $2, $3, $4, $5) RETURNING id, receipt_url',
+        [req.params.id, expense_date, description, validAmount, finalReceiptUrl]
+      );
+    } catch (colErr) {
+      if (colErr.message && colErr.message.includes('receipt_url')) {
+        r = await pool.query(
+          'INSERT INTO expenses (site_id, expense_date, description, amount) VALUES ($1, $2, $3, $4) RETURNING id',
+          [req.params.id, expense_date, description, validAmount]
+        );
+      } else {
+        throw colErr;
+      }
+    }
+    res.status(201).json({ id: r.rows[0].id, receipt_url: finalReceiptUrl });
   } catch (err) { handleDbError(res, err); }
 });
 
 // PUT /api/expenses/:id  (SEC-005 FIX: existence check added)
 app.put('/api/expenses/:id', anyRole, async (req, res) => {
-  const { expense_date, description, amount } = req.body;
+  const { expense_date, description, amount, image, receipt_url } = req.body;
   if (!expense_date || !description || amount == null)
     return res.status(400).json({ error: 'expense_date, description and amount are required' });
   const validAmount = parseAmount(amount);
   if (validAmount === null) return res.status(400).json({ error: 'Amount must be a positive number up to 99,999,999' });
   try {
-    const check = await pool.query('SELECT id FROM expenses WHERE id=$1', [req.params.id]);
+    const check = await pool.query('SELECT id, site_id, receipt_url FROM expenses WHERE id=$1', [req.params.id]);
     if (check.rowCount === 0) return res.status(404).json({ error: 'Expense not found' });
-    const r = await pool.query(
-      'UPDATE expenses SET expense_date=$1, description=$2, amount=$3 WHERE id=$4 RETURNING id, site_id, expense_date, description, amount',
-      [expense_date, description, validAmount, req.params.id]
-    );
+    const existing = check.rows[0];
+
+    let finalReceiptUrl = receipt_url !== undefined ? receipt_url : existing.receipt_url;
+
+    if (image && image.data) {
+      try {
+        const siteRes = await pool.query('SELECT site_name FROM sites WHERE site_id=$1', [existing.site_id]);
+        const siteName = siteRes.rows[0] ? siteRes.rows[0].site_name : existing.site_id;
+        const uploadRes = await saveExpenseImage({
+          siteId: existing.site_id,
+          siteName: siteName,
+          description: description,
+          expenseDate: expense_date,
+          imageBase64: image.data,
+          mimeType: image.type || 'image/jpeg'
+        });
+        if (uploadRes && uploadRes.viewUrl) {
+          finalReceiptUrl = uploadRes.viewUrl;
+        }
+      } catch (imgErr) {
+        console.error('[IMAGE UPLOAD ERROR]:', imgErr.message);
+      }
+    }
+
+    let r;
+    try {
+      r = await pool.query(
+        'UPDATE expenses SET expense_date=$1, description=$2, amount=$3, receipt_url=$4 WHERE id=$5 RETURNING id, site_id, expense_date, description, amount, receipt_url',
+        [expense_date, description, validAmount, finalReceiptUrl, req.params.id]
+      );
+    } catch (colErr) {
+      if (colErr.message && colErr.message.includes('receipt_url')) {
+        r = await pool.query(
+          'UPDATE expenses SET expense_date=$1, description=$2, amount=$3 WHERE id=$4 RETURNING id, site_id, expense_date, description, amount',
+          [expense_date, description, validAmount, req.params.id]
+        );
+      } else {
+        throw colErr;
+      }
+    }
     res.json({ ok: true, expense: r.rows[0] });
   } catch (err) { handleDbError(res, err); }
 });
@@ -434,12 +511,56 @@ app.get('/api/export/all', ownerOnly, async (req, res) => {
 app.get('/api/sites/:id/expenses/today', anyRole, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
-    res.json((await pool.query(
-      'SELECT id, expense_date, description, amount FROM expenses WHERE site_id=$1 AND expense_date=$2 ORDER BY id',
-      [req.params.id, today]
-    )).rows);
+    try {
+      res.json((await pool.query(
+        'SELECT id, expense_date, description, amount, receipt_url FROM expenses WHERE site_id=$1 AND expense_date=$2 ORDER BY id',
+        [req.params.id, today]
+      )).rows);
+    } catch (colErr) {
+      if (colErr.message && colErr.message.includes('receipt_url')) {
+        res.json((await pool.query(
+          'SELECT id, expense_date, description, amount FROM expenses WHERE site_id=$1 AND expense_date=$2 ORDER BY id',
+          [req.params.id, today]
+        )).rows);
+      } else {
+        throw colErr;
+      }
+    }
   } catch (err) { handleDbError(res, err); }
 });
+
+// GET /api/drive/status
+app.get('/api/drive/status', anyRole, (req, res) => {
+  const mode = getDriveMode();
+  res.json({
+    mode,
+    isGoogleDrive: mode === 'SERVICE_ACCOUNT' || mode === 'OAUTH2' || mode === 'WEBHOOK'
+  });
+});
+
+// ─── Auto DB Schema Migrations (ensures receipt_url exists) ───────────────────
+async function initDatabaseSchema() {
+  try {
+    await pool.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT');
+    await pool.query(`
+      CREATE OR REPLACE VIEW v_expense_ledger WITH (security_invoker = true) AS
+      SELECT 
+        e.id,
+        e.site_id,
+        s.site_name,
+        e.expense_date,
+        e.description,
+        e.amount,
+        SUM(e.amount) OVER (PARTITION BY e.site_id ORDER BY e.expense_date, e.id) AS cumulative_expense,
+        e.receipt_url
+      FROM expenses e
+      JOIN sites s ON e.site_id = s.site_id
+    `);
+    console.log('[DB] Schema verified (receipt_url column and views ready)');
+  } catch (err) {
+    console.warn('[DB SCHEMA NOTE]:', err.message);
+  }
+}
 
 // ─── Start server / Export for Vercel ────────────────────────────────────────
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
@@ -447,7 +568,13 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     console.warn('[WARN] ALLOWED_ORIGINS not set — CORS is open (dev mode only).');
   app.listen(PORT, () => {
     console.log(`ContractFlow server running on port ${PORT}`);
-    pool.connect().then(c => { console.log('Database connected'); c.release(); }).catch(e => console.error('DB error:', e.message));
+    pool.connect()
+      .then(c => {
+        console.log('Database connected');
+        c.release();
+        initDatabaseSchema();
+      })
+      .catch(e => console.error('DB error:', e.message));
   });
 }
 

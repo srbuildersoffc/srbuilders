@@ -26,6 +26,7 @@ CREATE TABLE expenses (
   expense_date DATE NOT NULL,
   description VARCHAR(255) NOT NULL,
   amount DECIMAL(12,2) NOT NULL,
+  receipt_url TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (site_id) REFERENCES sites(site_id)
 );
@@ -50,7 +51,8 @@ SELECT
   e.expense_date,
   e.description,
   e.amount,
-  SUM(e.amount) OVER (PARTITION BY e.site_id ORDER BY e.expense_date, e.id) AS cumulative_expense
+  SUM(e.amount) OVER (PARTITION BY e.site_id ORDER BY e.expense_date, e.id) AS cumulative_expense,
+  e.receipt_url
 FROM expenses e
 JOIN sites s ON e.site_id = s.site_id;
 
