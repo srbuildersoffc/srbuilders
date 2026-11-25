@@ -17,6 +17,9 @@ const { saveExpenseImage, getDriveMode, deleteExpenseImage } = require('./google
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Vercel / reverse-proxy X-Forwarded-For header so express-rate-limit works accurately
+app.set('trust proxy', 1);
+
 // ─── SEC-002 FIX: Fail fast if required env vars are missing ────────────────
 function requireEnv(name) {
   const v = process.env[name];
@@ -161,14 +164,20 @@ app.use(helmet({
 
 // ─── SEC-004 FIX: Restrict CORS to allowed origins ───────────────────────────
 const rawAllowedOrigins = process.env.ALLOWED_ORIGINS || '';
-const allowedOrigins = rawAllowedOrigins.split(',').map(s => s.trim()).filter(Boolean);
+const allowedOrigins = rawAllowedOrigins
+  .split(',')
+  .map(s => s.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
 
 app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
     if (allowedOrigins.length === 0) return cb(null, true); // dev fallback
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error(`CORS: origin ${origin} not allowed`));
+    const normalized = origin.replace(/\/+$/, '');
+    if (allowedOrigins.includes(normalized)) return cb(null, true);
+    const err = new Error(`CORS: origin ${origin} not allowed`);
+    err.status = 403;
+    cb(err);
   },
   optionsSuccessStatus: 200
 }));
@@ -428,20 +437,24 @@ const loginLimiter = rateLimit({
 
 // POST /api/login
 app.post('/api/login', loginLimiter, async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password)
-    return res.status(400).json({ error: 'Please enter User ID and Password' });
+  try {
+    const { username, password } = req.body;
+    if (!username || !password)
+      return res.status(400).json({ error: 'Please enter User ID and Password' });
 
-  const u = String(username).trim().toLowerCase();
-  const p = String(password).trim();
+    const u = String(username).trim().toLowerCase();
+    const p = String(password).trim();
 
-  if (timingSafeTextEqual(u, OWNER_USERNAME.toLowerCase()) && await verifyPassword(p, OWNER_PASSWORD))
-    return res.json({ role: 'owner', username: OWNER_USERNAME, token: makeToken('owner', OWNER_USERNAME) });
+    if (timingSafeTextEqual(u, OWNER_USERNAME.toLowerCase()) && await verifyPassword(p, OWNER_PASSWORD))
+      return res.json({ role: 'owner', username: OWNER_USERNAME, token: makeToken('owner', OWNER_USERNAME) });
 
-  if (timingSafeTextEqual(u, ASSISTANT_USERNAME.toLowerCase()) && await verifyPassword(p, ASSISTANT_PASSWORD))
-    return res.json({ role: 'assistant', username: ASSISTANT_USERNAME, token: makeToken('assistant', ASSISTANT_USERNAME) });
+    if (timingSafeTextEqual(u, ASSISTANT_USERNAME.toLowerCase()) && await verifyPassword(p, ASSISTANT_PASSWORD))
+      return res.json({ role: 'assistant', username: ASSISTANT_USERNAME, token: makeToken('assistant', ASSISTANT_USERNAME) });
 
-  return res.status(401).json({ error: 'Incorrect User ID or Password' });
+    return res.status(401).json({ error: 'Incorrect User ID or Password' });
+  } catch (err) {
+    handleDbError(res, err);
+  }
 });
 
 // GET /api/sites
@@ -889,6 +902,16 @@ app.get('/api/drive/status', anyRole, (req, res) => {
   });
 });
 
+// ─── Global JSON Error Handler (prevents HTML 500 error pages on /api/*) ─────
+app.use((err, req, res, next) => {
+  console.error('[EXPRESS ERROR]', err.message);
+  if (res.headersSent) return next(err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    error: status < 500 ? err.message : 'An internal error occurred. Please try again.'
+  });
+});
+
 // ─── Start server / Export for Vercel ────────────────────────────────────────
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   if (allowedOrigins.length === 0)
@@ -897,7 +920,8 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     console.warn('[SECURITY WARN] Plaintext password env vars detected. Set OWNER_PASSWORD_HASH / ASSISTANT_PASSWORD_HASH with bcrypt hashes for production.');
   app.listen(PORT, () => {
     console.log(`ContractFlow server running on port ${PORT}`);
-    pool.connect()
+    Promise.resolve()
+      .then(() => pool.connect())
       .then(c => {
         console.log('Database connected');
         c.release();
