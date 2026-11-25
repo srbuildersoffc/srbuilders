@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS sites (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE SEQUENCE IF NOT EXISTS site_id_seq START WITH 1;
+
 -- 2. Advance Payments Table (Owner only)
 CREATE TABLE IF NOT EXISTS advance_payments (
   id SERIAL PRIMARY KEY,
@@ -23,7 +25,7 @@ CREATE TABLE IF NOT EXISTS advance_payments (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Daily Expenses Table (Logged by Assistant)
+-- 3. Daily Expenses Table (Logged by Assistant / Owner)
 CREATE TABLE IF NOT EXISTS expenses (
   id SERIAL PRIMARY KEY,
   site_id VARCHAR(10) NOT NULL REFERENCES sites(site_id) ON DELETE CASCADE,
@@ -31,10 +33,24 @@ CREATE TABLE IF NOT EXISTS expenses (
   description TEXT NOT NULL,
   amount NUMERIC(12,2) NOT NULL,
   receipt_url TEXT,
+  added_by TEXT,
+  deleted_at TIMESTAMPTZ DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Advance Ledger View (Calculates cumulative total per site)
+-- 4. Audit Log Table
+CREATE TABLE IF NOT EXISTS audit_log (
+  id SERIAL PRIMARY KEY,
+  actor TEXT NOT NULL,
+  role VARCHAR(20) NOT NULL,
+  action VARCHAR(30) NOT NULL,
+  target_table VARCHAR(40) NOT NULL,
+  target_id TEXT NOT NULL,
+  details JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Advance Ledger View (Calculates cumulative total per site)
 CREATE OR REPLACE VIEW v_advance_ledger WITH (security_invoker = true) AS
 SELECT 
   a.id,
@@ -47,7 +63,7 @@ SELECT
 FROM advance_payments a
 JOIN sites s ON a.site_id = s.site_id;
 
--- 5. Daily Expense Ledger View (Calculates cumulative total per site)
+-- 6. Daily Expense Ledger View (Calculates cumulative total per site, excludes soft-deleted)
 CREATE OR REPLACE VIEW v_expense_ledger WITH (security_invoker = true) AS
 SELECT 
   e.id,
@@ -57,11 +73,13 @@ SELECT
   e.description,
   e.amount,
   SUM(e.amount) OVER (PARTITION BY e.site_id ORDER BY e.expense_date, e.id) AS cumulative_expense,
-  e.receipt_url
+  e.receipt_url,
+  e.added_by
 FROM expenses e
-JOIN sites s ON e.site_id = s.site_id;
+JOIN sites s ON e.site_id = s.site_id
+WHERE e.deleted_at IS NULL;
 
--- 6. All Sites Summary View (Auto-updates with live totals & difference)
+-- 7. All Sites Summary View (Auto-updates with live totals & difference)
 CREATE OR REPLACE VIEW v_sites_summary WITH (security_invoker = true) AS
 SELECT 
   s.site_id,
@@ -80,10 +98,11 @@ LEFT JOIN (
 LEFT JOIN (
   SELECT site_id, SUM(amount) AS total_expenses 
   FROM expenses 
+  WHERE deleted_at IS NULL
   GROUP BY site_id
 ) exp ON s.site_id = exp.site_id;
 
--- 7. Sample Initial Data
+-- 8. Sample Initial Data
 INSERT INTO sites (site_id, site_name, client_name, start_date, status) VALUES 
   ('S001', 'Sharma Residence', 'Ramesh Sharma', '2026-10-01', 'active'),
   ('S002', 'Raj Commercial', 'Raj Kumar', '2026-10-03', 'active')
@@ -102,14 +121,16 @@ INSERT INTO expenses (site_id, expense_date, description, amount) VALUES
   ('S002', '2026-11-01', 'Steel rods - 500 kg', 45000),
   ('S002', '2026-11-02', 'Bricks - 5000 nos', 35000);
 
--- 8. Row Level Security (RLS) & Protection against public PostgREST exposure
+-- 9. Row Level Security (RLS) & Protection against public PostgREST exposure
 ALTER TABLE public.sites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.advance_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE public.sites FROM anon;
 REVOKE ALL ON TABLE public.advance_payments FROM anon;
 REVOKE ALL ON TABLE public.expenses FROM anon;
+REVOKE ALL ON TABLE public.audit_log FROM anon;
 
 REVOKE ALL ON public.v_advance_ledger FROM anon;
 REVOKE ALL ON public.v_expense_ledger FROM anon;

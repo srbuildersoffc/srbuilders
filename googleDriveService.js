@@ -5,7 +5,10 @@ const path   = require('path');
 const crypto = require('crypto');
 const https  = require('https');
 
-// In-memory cache for folder IDs and OAuth tokens
+// Per-instance cache for folder IDs and OAuth tokens.
+// NOTE (Vercel Serverless): Module-level state is not shared across serverless
+// function instances and is cleared on cold starts. On a cold start or different
+// instance, getAccessToken() / getOrCreateSiteFolder() will cleanly re-fetch.
 const folderCache = new Map();
 let cachedAccessToken = null;
 let tokenExpiresAt = 0;
