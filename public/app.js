@@ -29,58 +29,67 @@
   function compressImage(file, maxWidth, maxHeight, quality) {
     maxWidth = maxWidth || 1920;
     maxHeight = maxHeight || 1920;
-    quality = quality !== undefined ? quality : 0.82;
+    quality = quality !== undefined ? quality : 0.78;
 
-    return new Promise(function(resolve, reject) {
-      if (!file || !file.type.startsWith('image/')) {
-        return reject(new Error('Please select an image file'));
+    if (!file || !file.type.startsWith('image/')) {
+      return Promise.reject(new Error('Please select an image file'));
+    }
+
+    function drawAndExport(source, srcWidth, srcHeight, cleanup) {
+      var width = srcWidth;
+      var height = srcHeight;
+      if (width > maxWidth || height > maxHeight) {
+        if (width / height > maxWidth / maxHeight) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        } else {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
       }
 
+      var canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      var ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(source, 0, 0, width, height);
+      if (cleanup) cleanup();
+
+      var compressedDataUri = canvas.toDataURL('image/jpeg', quality);
+      var head = 'data:image/jpeg;base64,';
+      var base64Length = compressedDataUri.length - head.length;
+      var compressedSize = Math.round((base64Length * 3) / 4);
+
+      return {
+        data: compressedDataUri,
+        type: 'image/jpeg',
+        originalName: file.name,
+        originalSize: file.size,
+        compressedSize: compressedSize,
+        width: width,
+        height: height
+      };
+    }
+
+    if (typeof createImageBitmap === 'function') {
+      return createImageBitmap(file).then(function(bitmap) {
+        return drawAndExport(bitmap, bitmap.width, bitmap.height, function() {
+          if (typeof bitmap.close === 'function') bitmap.close();
+        });
+      });
+    }
+
+    return new Promise(function(resolve, reject) {
       var reader = new FileReader();
       reader.onerror = function() { reject(new Error('Failed to read image file')); };
       reader.onload = function(e) {
         var img = new Image();
         img.onerror = function() { reject(new Error('Failed to parse image data')); };
         img.onload = function() {
-          var width = img.width;
-          var height = img.height;
-
-          // Scale dimensions down while maintaining aspect ratio
-          if (width > maxWidth || height > maxHeight) {
-            if (width / height > maxWidth / maxHeight) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            } else {
-              width = Math.round((width * maxHeight) / height);
-              height = maxHeight;
-            }
-          }
-
-          var canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-
-          var ctx = canvas.getContext('2d');
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, width, height);
-
-          var compressedDataUri = canvas.toDataURL('image/jpeg', quality);
-
-          var originalSize = file.size;
-          var head = 'data:image/jpeg;base64,';
-          var base64Length = compressedDataUri.length - head.length;
-          var compressedSize = Math.round((base64Length * 3) / 4);
-
-          resolve({
-            data: compressedDataUri,
-            type: 'image/jpeg',
-            originalName: file.name,
-            originalSize: originalSize,
-            compressedSize: compressedSize,
-            width: width,
-            height: height
-          });
+          resolve(drawAndExport(img, img.width, img.height));
         };
         img.src = e.target.result;
       };
@@ -311,12 +320,27 @@
   });
 
   // ── OWNER: Tab Switching ──
+  var activeOwnerTab = 'tab-projects';
+  var loadedExpensesSite = '';
+  var loadedAdvancesSite = '';
+
   document.querySelectorAll('.tab-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
       document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
       btn.classList.add('active');
-      document.getElementById(btn.dataset.tab).classList.add('active');
+      activeOwnerTab = btn.dataset.tab;
+      document.getElementById(activeOwnerTab).classList.add('active');
+
+      // Lazy-load tab data only if not already loaded for selectedSiteId
+      if (selectedSiteId) {
+        if (activeOwnerTab === 'tab-expenses' && loadedExpensesSite !== selectedSiteId) {
+          loadExpenses(selectedSiteId);
+          loadExpenseSummary(selectedSiteId);
+        } else if (activeOwnerTab === 'tab-advances' && loadedAdvancesSite !== selectedSiteId) {
+          loadAdvances(selectedSiteId);
+        }
+      }
     });
   });
 
@@ -328,23 +352,27 @@
   expenseSiteSelect.addEventListener('change', function() {
     selectedSiteId = this.value;
     advanceSiteSelect.value = selectedSiteId;
+    loadedExpensesSite = '';
+    loadedAdvancesSite = '';
     if (selectedSiteId) {
       loadExpenses(selectedSiteId);
       loadExpenseSummary(selectedSiteId);
     } else {
       clearExpensesTable();
+      clearAdvancesTable();
     }
   });
 
   advanceSiteSelect.addEventListener('change', function() {
     selectedSiteId = this.value;
     expenseSiteSelect.value = selectedSiteId;
+    loadedExpensesSite = '';
+    loadedAdvancesSite = '';
     if (selectedSiteId) {
       loadAdvances(selectedSiteId);
-      loadExpenses(selectedSiteId);
-      loadExpenseSummary(selectedSiteId);
     } else {
       clearAdvancesTable();
+      clearExpensesTable();
     }
   });
 
@@ -353,7 +381,6 @@
 
   async function loadOwnerData() {
     await loadSummary();
-    await loadSiteDropdowns();
   }
 
   async function loadSummary() {
@@ -362,6 +389,7 @@
       summaryData = await res.json();
       renderProjectsTable(summaryData);
       renderMetrics(summaryData);
+      populateOwnerSiteDropdowns(summaryData);
     } catch (err) {
       showToast('Failed to load summary: ' + err.message, 'error');
     }
@@ -386,11 +414,27 @@
     document.getElementById('m-active').textContent = activeCount;
   }
 
+  var htmlEscapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   function escapeHtml(str) {
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
+    if (str == null) return '';
+    return String(str).replace(/[&<>"']/g, function(ch) { return htmlEscapeMap[ch]; });
   }
+
+  // Event delegation for Projects table (bound once)
+  document.getElementById('projects-tbody').addEventListener('click', function(e) {
+    var editBtn = e.target.closest('[data-edit-site]');
+    if (editBtn) {
+      openEditSiteModal(editBtn.dataset.editSite);
+      return;
+    }
+    var delBtn = e.target.closest('[data-delete-site]');
+    if (delBtn) {
+      pendingDeleteType = 'site';
+      pendingDeleteId = delBtn.dataset.deleteSite;
+      document.getElementById('delete-modal-msg').textContent = 'Are you sure you want to permanently delete site ' + pendingDeleteId + ' and all its recorded advances and expenses? This action cannot be undone.';
+      openModal('modal-confirm-delete');
+    }
+  });
 
   function renderProjectsTable(data) {
     var tbody = document.getElementById('projects-tbody');
@@ -427,46 +471,25 @@
       html += '<span class="util-text">' + pct + '%</span>';
       html += '</td>';
       html += '<td style="text-align:right; white-space:nowrap;">';
-      html += '<button class="btn btn-outline btn-sm btn-edit-site" data-edit-site="' + s.site_id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
-      html += '<button class="btn btn-danger btn-sm btn-delete-site" data-delete-site="' + s.site_id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+      html += '<button class="btn btn-outline btn-sm btn-edit-site" data-edit-site="' + escapeHtml(s.site_id) + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+      html += '<button class="btn btn-danger btn-sm btn-delete-site" data-delete-site="' + escapeHtml(s.site_id) + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
       html += '</td>';
       html += '</tr>';
     });
     tbody.innerHTML = html;
-
-    tbody.querySelectorAll('[data-edit-site]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        openEditSiteModal(btn.dataset.editSite);
-      });
-    });
-
-    tbody.querySelectorAll('[data-delete-site]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        pendingDeleteType = 'site';
-        pendingDeleteId = btn.dataset.deleteSite;
-        document.getElementById('delete-modal-msg').textContent = 'Are you sure you want to permanently delete site ' + pendingDeleteId + ' and all its recorded advances and expenses? This action cannot be undone.';
-        openModal('modal-confirm-delete');
-      });
-    });
   }
 
-  async function loadSiteDropdowns() {
-    try {
-      var res = await apiFetch('/api/sites');
-      var sites = await res.json();
-      var options = '<option value="">Select a site</option>';
-      sites.forEach(function(s) {
-        options += '<option value="' + s.site_id + '">' + escapeHtml(s.site_name) + '</option>';
-      });
-      expenseSiteSelect.innerHTML = options;
-      advanceSiteSelect.innerHTML = options;
+  function populateOwnerSiteDropdowns(sites) {
+    var options = '<option value="">Select a site</option>';
+    sites.forEach(function(s) {
+      options += '<option value="' + escapeHtml(s.site_id) + '">' + escapeHtml(s.site_name) + '</option>';
+    });
+    expenseSiteSelect.innerHTML = options;
+    advanceSiteSelect.innerHTML = options;
 
-      if (selectedSiteId) {
-        expenseSiteSelect.value = selectedSiteId;
-        advanceSiteSelect.value = selectedSiteId;
-      }
-    } catch (err) {
-      showToast('Failed to load sites', 'error');
+    if (selectedSiteId) {
+      expenseSiteSelect.value = selectedSiteId;
+      advanceSiteSelect.value = selectedSiteId;
     }
   }
 
@@ -529,36 +552,52 @@
     openModal('modal-edit-expense');
   }
 
-  function attachExpenseListeners(tbody, siteId) {
-    tbody.querySelectorAll('[data-edit-expense]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var ex = expenseStore[btn.dataset.editExpense];
-        if (ex) openEditExpenseModal(ex, siteId);
-      });
-    });
-
-    tbody.querySelectorAll('[data-delete-expense]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        pendingDeleteType = 'expense';
-        pendingDeleteId = btn.dataset.deleteExpense;
-        document.getElementById('delete-modal-msg').textContent = 'Are you sure you want to delete this expense? This action cannot be undone.';
-        openModal('modal-confirm-delete');
-      });
-    });
-
-    tbody.querySelectorAll('.btn-view-receipt').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
+  // Delegated click handler bound once per expense/advance tbody
+  function bindExpenseTableDelegation(tbodyId, getSiteId) {
+    var tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.addEventListener('click', function(e) {
+      var receiptLink = e.target.closest('.btn-view-receipt');
+      if (receiptLink) {
         e.preventDefault();
         e.stopPropagation();
-        openReceiptModal(btn.dataset.url, btn.dataset.desc);
-      });
+        openReceiptModal(receiptLink.dataset.url, receiptLink.dataset.desc);
+        return;
+      }
+      var editBtn = e.target.closest('[data-edit-expense]');
+      if (editBtn) {
+        var ex = expenseStore[editBtn.dataset.editExpense];
+        if (ex) openEditExpenseModal(ex, getSiteId());
+        return;
+      }
+      var delBtn = e.target.closest('[data-delete-expense]');
+      if (delBtn) {
+        pendingDeleteType = 'expense';
+        pendingDeleteId = delBtn.dataset.deleteExpense;
+        document.getElementById('delete-modal-msg').textContent = 'Are you sure you want to delete this expense? This action cannot be undone.';
+        openModal('modal-confirm-delete');
+      }
     });
   }
+
+  bindExpenseTableDelegation('expenses-tbody', function() { return selectedSiteId; });
+  bindExpenseTableDelegation('asst-today-tbody', function() { return asstSelectedSiteId || asstSiteSelect.value; });
+  bindExpenseTableDelegation('asst-expenses-tbody', function() { return asstSelectedSiteId || asstSiteSelect.value; });
+
+  document.getElementById('advances-tbody').addEventListener('click', function(e) {
+    var delBtn = e.target.closest('[data-delete-advance]');
+    if (delBtn) {
+      pendingDeleteType = 'advance';
+      pendingDeleteId = delBtn.dataset.deleteAdvance;
+      openModal('modal-confirm-delete');
+    }
+  });
 
   async function loadExpenses(siteId) {
     try {
       var res = await apiFetch('/api/sites/' + siteId + '/expenses');
       var expenses = await res.json();
+      loadedExpensesSite = siteId;
       document.getElementById('expenses-table').style.display = 'table';
 
       var tbody = document.getElementById('expenses-tbody');
@@ -588,7 +627,6 @@
       });
       tbody.innerHTML = html;
       document.getElementById('expenses-total').textContent = formatCurrency(total);
-      attachExpenseListeners(tbody, siteId);
     } catch (err) {
       showToast('Failed to load expenses: ' + err.message, 'error');
     }
@@ -603,6 +641,7 @@
     try {
       var res = await apiFetch('/api/sites/' + siteId + '/advances');
       var advances = await res.json();
+      loadedAdvancesSite = siteId;
       document.getElementById('advances-table').style.display = 'table';
 
       var tbody = document.getElementById('advances-tbody');
@@ -627,14 +666,6 @@
       });
       tbody.innerHTML = html;
       document.getElementById('advances-total').textContent = formatCurrency(total);
-
-      tbody.querySelectorAll('[data-delete-advance]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          pendingDeleteType = 'advance';
-          pendingDeleteId = btn.dataset.deleteAdvance;
-          openModal('modal-confirm-delete');
-        });
-      });
     } catch (err) {
       showToast('Failed to load advances: ' + err.message, 'error');
     }
@@ -667,35 +698,31 @@
       if (pendingDeleteType === 'site') {
         if (selectedSiteId === pendingDeleteId) {
           selectedSiteId = '';
+          loadedExpensesSite = '';
+          loadedAdvancesSite = '';
           clearExpensesTable();
           clearAdvancesTable();
         }
         await loadSummary();
-        await loadSiteDropdowns();
       } else if (pendingDeleteType === 'expense') {
         if (getRole() === 'owner') {
-          if (selectedSiteId) {
-            loadExpenses(selectedSiteId);
-          }
-          await loadSummary();
-          if (selectedSiteId) {
-            loadExpenseSummary(selectedSiteId);
-          }
+          await Promise.all([
+            selectedSiteId ? loadExpenses(selectedSiteId) : Promise.resolve(),
+            loadSummary()
+          ]);
+          if (selectedSiteId) loadExpenseSummary(selectedSiteId);
         } else {
           var asstSite = asstSelectedSiteId || asstSiteSelect.value;
           if (asstSite) {
-            await loadTodayExpenses(asstSite);
             await loadAssistantSiteExpenses(asstSite);
           }
         }
       } else {
-        if (selectedSiteId) {
-          loadAdvances(selectedSiteId);
-        }
-        await loadSummary();
-        if (selectedSiteId) {
-          loadExpenseSummary(selectedSiteId);
-        }
+        await Promise.all([
+          selectedSiteId ? loadAdvances(selectedSiteId) : Promise.resolve(),
+          loadSummary()
+        ]);
+        if (selectedSiteId) loadExpenseSummary(selectedSiteId);
       }
     } catch (err) {
       showToast('Delete failed: ' + err.message, 'error');
@@ -757,7 +784,6 @@
       showToast('Site details updated', 'success');
       closeModal('modal-edit-site');
       await loadSummary();
-      await loadSiteDropdowns();
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     }
@@ -804,17 +830,14 @@
       closeModal('modal-edit-expense');
 
       if (getRole() === 'owner') {
-        if (selectedSiteId) {
-          loadExpenses(selectedSiteId);
-        }
-        await loadSummary();
-        if (selectedSiteId) {
-          loadExpenseSummary(selectedSiteId);
-        }
+        await Promise.all([
+          selectedSiteId ? loadExpenses(selectedSiteId) : Promise.resolve(),
+          loadSummary()
+        ]);
+        if (selectedSiteId) loadExpenseSummary(selectedSiteId);
       } else {
         var asstSite = asstSelectedSiteId || asstSiteSelect.value;
         if (asstSite) {
-          await loadTodayExpenses(asstSite);
           await loadAssistantSiteExpenses(asstSite);
         }
       }
@@ -885,7 +908,6 @@
       showToast('Site created successfully', 'success');
       closeModal('modal-new-site');
       await loadSummary();
-      await loadSiteDropdowns();
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     }
@@ -965,8 +987,10 @@
       document.getElementById('ae-gallery-input').value = '';
       document.getElementById('ae-photo-preview').style.display = 'none';
       closeModal('modal-add-expense');
-      loadExpenses(selectedSiteId);
-      await loadSummary();
+      await Promise.all([
+        loadExpenses(selectedSiteId),
+        loadSummary()
+      ]);
       loadExpenseSummary(selectedSiteId);
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
@@ -1055,8 +1079,10 @@
       }
       showToast('Advance added', 'success');
       closeModal('modal-add-advance');
-      loadAdvances(selectedSiteId);
-      await loadSummary();
+      await Promise.all([
+        loadAdvances(selectedSiteId),
+        loadSummary()
+      ]);
       loadExpenseSummary(selectedSiteId);
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
@@ -1156,7 +1182,6 @@
       if (asstSelectedSiteId) {
         asstSiteSelect.value = asstSelectedSiteId;
         asstLedgerSiteSelect.value = asstSelectedSiteId;
-        loadTodayExpenses(asstSelectedSiteId);
         loadAssistantSiteExpenses(asstSelectedSiteId);
       }
     } catch (err) {
@@ -1179,7 +1204,6 @@
     asstSelectedSiteId = this.value;
     asstLedgerSiteSelect.value = asstSelectedSiteId;
     if (asstSelectedSiteId) {
-      loadTodayExpenses(asstSelectedSiteId);
       loadAssistantSiteExpenses(asstSelectedSiteId);
     } else {
       clearAssistantTables();
@@ -1190,43 +1214,38 @@
     asstSelectedSiteId = this.value;
     asstSiteSelect.value = asstSelectedSiteId;
     if (asstSelectedSiteId) {
-      loadTodayExpenses(asstSelectedSiteId);
       loadAssistantSiteExpenses(asstSelectedSiteId);
     } else {
       clearAssistantTables();
     }
   });
 
-  async function loadTodayExpenses(siteId) {
-    try {
-      var res = await apiFetch('/api/sites/' + siteId + '/expenses/today');
-      var entries = await res.json();
-      var tbody = document.getElementById('asst-today-tbody');
+  function renderTodayExpensesFromList(expenses) {
+    var today = todayISO();
+    var entries = expenses.filter(function(e) {
+      return String(e.expense_date || '').slice(0, 10) === today;
+    });
+    var tbody = document.getElementById('asst-today-tbody');
 
-      if (entries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--secondary); padding:20px;">No entries yet today.</td></tr>';
-        return;
-      }
-
-      var html = '';
-      entries.forEach(function(e) {
-        expenseStore[e.id] = e;
-        var receiptBtn = e.receipt_url ? ' <a href="' + escapeHtml(e.receipt_url) + '" target="_blank" rel="noopener noreferrer" class="btn-view-receipt receipt-pill" data-url="' + escapeHtml(e.receipt_url) + '" data-desc="' + escapeHtml(e.description || '') + '" title="Click to view receipt or right-click to copy link">&#128247; Receipt &#x2197;</a>' : '';
-        html += '<tr>';
-        html += '<td style="white-space:nowrap">' + formatDateDisplay(e.expense_date) + '</td>';
-        html += '<td>' + escapeHtml(e.description || '') + receiptBtn + '</td>';
-        html += '<td style="text-align:right" class="mono">' + formatCurrency(e.amount) + '</td>';
-        html += '<td style="text-align:right; white-space:nowrap;">';
-        html += '<button class="btn btn-outline btn-sm btn-edit-expense" data-edit-expense="' + e.id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
-        html += '<button class="btn btn-danger btn-sm btn-delete-expense" data-delete-expense="' + e.id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
-        html += '</td>';
-        html += '</tr>';
-      });
-      tbody.innerHTML = html;
-      attachExpenseListeners(tbody, siteId);
-    } catch (err) {
-      showToast('Failed to load today\'s entries', 'error');
+    if (entries.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--secondary); padding:20px;">No entries yet today.</td></tr>';
+      return;
     }
+
+    var html = '';
+    entries.forEach(function(e) {
+      var receiptBtn = e.receipt_url ? ' <a href="' + escapeHtml(e.receipt_url) + '" target="_blank" rel="noopener noreferrer" class="btn-view-receipt receipt-pill" data-url="' + escapeHtml(e.receipt_url) + '" data-desc="' + escapeHtml(e.description || '') + '" title="Click to view receipt or right-click to copy link">&#128247; Receipt &#x2197;</a>' : '';
+      html += '<tr>';
+      html += '<td style="white-space:nowrap">' + formatDateDisplay(e.expense_date) + '</td>';
+      html += '<td>' + escapeHtml(e.description || '') + receiptBtn + '</td>';
+      html += '<td style="text-align:right" class="mono">' + formatCurrency(e.amount) + '</td>';
+      html += '<td style="text-align:right; white-space:nowrap;">';
+      html += '<button class="btn btn-outline btn-sm btn-edit-expense" data-edit-expense="' + e.id + '" style="padding:4px 8px; font-size:12px; margin-right:4px;">Edit</button>';
+      html += '<button class="btn btn-danger btn-sm btn-delete-expense" data-delete-expense="' + e.id + '" style="padding:4px 8px; font-size:12px;">Delete</button>';
+      html += '</td>';
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
   }
 
   async function loadAssistantSiteExpenses(siteId) {
@@ -1245,6 +1264,7 @@
 
       var tbody = document.getElementById('asst-expenses-tbody');
       if (expenses.length === 0) {
+        renderTodayExpensesFromList([]);
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--secondary); padding:20px;">No expenses recorded yet for this site.</td></tr>';
         document.getElementById('asst-expenses-total').textContent = formatCurrency(0);
         document.getElementById('asst-es-total').textContent = formatCurrency(0);
@@ -1275,7 +1295,7 @@
       document.getElementById('asst-es-total').textContent = formatCurrency(total);
       document.getElementById('asst-es-count').textContent = expenses.length + ' entries';
 
-      attachExpenseListeners(tbody, siteId);
+      renderTodayExpensesFromList(expenses);
     } catch (err) {
       showToast('Failed to load site expenses: ' + err.message, 'error');
     }
@@ -1416,7 +1436,6 @@
       document.getElementById('asst-gallery-input').value = '';
       document.getElementById('asst-photo-preview').style.display = 'none';
 
-      await loadTodayExpenses(siteId);
       await loadAssistantSiteExpenses(siteId);
     } catch (err) {
       showToast('Error: ' + err.message, 'error');

@@ -71,15 +71,21 @@ function buildSslConfig() {
 }
 
 const connectionString = process.env.DATABASE_URL;
+const poolConfig = {
+  max: parseInt(process.env.DB_POOL_MAX || (process.env.VERCEL ? '2' : '5'), 10),
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000
+};
 const pool = connectionString
-  ? new Pool({ connectionString, ssl: buildSslConfig() })
+  ? new Pool({ connectionString, ssl: buildSslConfig(), ...poolConfig })
   : new Pool({
       host    : process.env.DB_HOST     || 'localhost',
       user    : process.env.DB_USER     || 'postgres',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME     || 'postgres',
       port    : parseInt(process.env.DB_PORT || '5432', 10),
-      ssl     : process.env.DB_SSL === 'true' ? buildSslConfig() : undefined
+      ssl     : process.env.DB_SSL === 'true' ? buildSslConfig() : undefined,
+      ...poolConfig
     });
 
 // ─── SEC-008 FIX: Sanitised DB error handler ─────────────────────────────────
@@ -171,7 +177,14 @@ app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ limit: '15mb', extended: true }));
 
 // ─── SEC-006 FIX: Serve only the public/ subdirectory ────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('index.html') || filePath.endsWith('sw.js')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // ─── Serve Homepage ───────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -181,7 +194,7 @@ app.get('/', (req, res) => {
 });
 
 // ─── Serve PWA Static Files ───────────────────────────────────────────────────
-const manifestData = require('./manifest.json');
+const manifestData = require('./public/manifest.json');
 
 app.get('/manifest.json', (req, res) => {
   res.setHeader('Content-Type', 'application/manifest+json');
@@ -189,7 +202,7 @@ app.get('/manifest.json', (req, res) => {
 });
 
 const swScript = `// SR Builders Service Worker
-const CACHE_NAME = 'srbuilders-v2';
+const CACHE_NAME = 'srbuilders-v3';
 const ASSETS_TO_CACHE = ['/', '/index.html', '/app.js', '/sw-register.js', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)));
@@ -204,14 +217,19 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   if (event.request.url.includes('/api/')) { event.respondWith(fetch(event.request)); return; }
+  // Stale-while-revalidate for static assets (instant repeat loads + background refresh)
   event.respondWith(
-    fetch(event.request).then((response) => {
-      if (response && response.status === 200 && response.type === 'basic') {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-      }
-      return response;
-    }).catch(() => caches.match(event.request))
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(event.request).then((cached) => {
+        const networkFetch = fetch(event.request).then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            cache.put(event.request, response.clone());
+          }
+          return response;
+        }).catch(() => cached);
+        return cached || networkFetch;
+      })
+    )
   );
 });`;
 
@@ -270,15 +288,33 @@ function ownerOnly(req, res, next) {
 
 function anyRole(req, res, next) { verifyToken(req, res, next); }
 
-// ─── Single Startup / Cold-Start DB Schema Initializer ────────────────────────
+// ─── Single Startup / Deploy-Time DB Schema Initializer ──────────────────────
 let schemaPromise = null;
-function initDatabaseSchema() {
-  if (schemaPromise) return schemaPromise;
-  schemaPromise = (async () => {
+function initDatabaseSchema({ force = false } = {}) {
+  if (!force && process.env.SKIP_RUNTIME_SCHEMA === 'true') {
+    return Promise.resolve();
+  }
+  if (!force && schemaPromise) return schemaPromise;
+  const run = (async () => {
     try {
       await pool.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_url TEXT');
       await pool.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS added_by TEXT');
       await pool.query('ALTER TABLE expenses ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL');
+
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_expenses_site_active
+          ON expenses (site_id, expense_date, id)
+          WHERE deleted_at IS NULL
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_expenses_dedup
+          ON expenses (site_id, expense_date, created_at)
+          WHERE deleted_at IS NULL
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_advances_site_date
+          ON advance_payments (site_id, payment_date, id)
+      `);
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS audit_log (
@@ -345,17 +381,22 @@ function initDatabaseSchema() {
         ) exp ON s.site_id = exp.site_id
       `);
 
-      console.log('[DB] Schema verified (columns, views, audit_log, site_id_seq ready)');
+      console.log('[DB] Schema verified (columns, indexes, views, audit_log, site_id_seq ready)');
     } catch (err) {
       schemaPromise = null; // allow retry if transient DB error
+      if (force) throw err;
       console.warn('[DB SCHEMA NOTE]:', err.message);
     }
   })();
-  return schemaPromise;
+  if (!force) schemaPromise = run;
+  return run;
 }
 
-// Ensure schema is initialized once per process/cold-start on API requests
+// Run schema check once per cold-start only on DB-backed routes (never blocks /login, /health, /drive/status)
 app.use('/api', async (req, res, next) => {
+  if (req.path === '/login' || req.path === '/health' || req.path === '/drive/status') {
+    return next();
+  }
   await initDatabaseSchema();
   next();
 });
@@ -763,14 +804,16 @@ app.delete('/api/advances/:id', ownerOnly, async (req, res) => {
   } catch (err) { handleDbError(res, err); }
 });
 
-// GET /api/sites/:id/export (includes Receipt URL)
+// GET /api/sites/:id/export (includes Receipt URL, parallelized queries)
 app.get('/api/sites/:id/export', ownerOnly, async (req, res) => {
   try {
-    const siteId   = req.params.id;
-    const siteRes  = await pool.query('SELECT site_name FROM sites WHERE site_id=$1', [siteId]);
+    const siteId = req.params.id;
+    const [siteRes, expRes, advRes] = await Promise.all([
+      pool.query('SELECT site_name FROM sites WHERE site_id=$1', [siteId]),
+      pool.query('SELECT * FROM v_expense_ledger WHERE site_id=$1 ORDER BY expense_date, id', [siteId]),
+      pool.query('SELECT * FROM v_advance_ledger WHERE site_id=$1 ORDER BY payment_date, id', [siteId])
+    ]);
     const siteName = siteRes.rows[0] ? siteRes.rows[0].site_name : siteId;
-    const expRes   = await pool.query('SELECT * FROM v_expense_ledger WHERE site_id=$1 ORDER BY expense_date, id', [siteId]);
-    const advRes   = await pool.query('SELECT * FROM v_advance_ledger WHERE site_id=$1 ORDER BY payment_date, id', [siteId]);
     const wb = XLSX.utils.book_new();
     const expData = [['Date', 'Description', 'Amount (Rs)', 'Cumulative Total (Rs)', 'Receipt URL']];
     expRes.rows.forEach(r => expData.push([
@@ -792,18 +835,20 @@ app.get('/api/sites/:id/export', ownerOnly, async (req, res) => {
   } catch (err) { handleDbError(res, err); }
 });
 
-// GET /api/export/all (includes Receipt URL)
+// GET /api/export/all (includes Receipt URL, parallelized queries)
 app.get('/api/export/all', ownerOnly, async (req, res) => {
   try {
-    const summaryRes  = await pool.query('SELECT * FROM v_sites_summary ORDER BY site_id');
-    const expensesRes = await pool.query(`
-      SELECT e.site_id, s.site_name, e.expense_date, e.description, e.amount, e.receipt_url
-      FROM expenses e JOIN sites s ON e.site_id=s.site_id
-      WHERE e.deleted_at IS NULL
-      ORDER BY e.site_id, e.expense_date, e.id
-    `);
-    const advancesRes = await pool.query(`SELECT a.site_id, s.site_name, a.payment_date, a.amount, a.notes FROM advance_payments a JOIN sites s ON a.site_id=s.site_id ORDER BY a.site_id, a.payment_date, a.id`);
-    const sitesRes    = await pool.query('SELECT site_id, site_name, client_name, start_date, status FROM sites ORDER BY site_id');
+    const [summaryRes, expensesRes, advancesRes, sitesRes] = await Promise.all([
+      pool.query('SELECT * FROM v_sites_summary ORDER BY site_id'),
+      pool.query(`
+        SELECT e.site_id, s.site_name, e.expense_date, e.description, e.amount, e.receipt_url
+        FROM expenses e JOIN sites s ON e.site_id=s.site_id
+        WHERE e.deleted_at IS NULL
+        ORDER BY e.site_id, e.expense_date, e.id
+      `),
+      pool.query(`SELECT a.site_id, s.site_name, a.payment_date, a.amount, a.notes FROM advance_payments a JOIN sites s ON a.site_id=s.site_id ORDER BY a.site_id, a.payment_date, a.id`),
+      pool.query('SELECT site_id, site_name, client_name, start_date, status FROM sites ORDER BY site_id')
+    ]);
     const wb = XLSX.utils.book_new();
     const sumData = [['Site ID','Site Name','Client','Status','Total Advance (Rs)','Total Expenses (Rs)','Difference (Rs)']];
     summaryRes.rows.forEach(r => sumData.push([r.site_id,r.site_name,r.client_name||'',r.status,parseFloat(r.total_advance||0),parseFloat(r.total_expenses||0),parseFloat(r.difference||0)]));
@@ -862,4 +907,6 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   });
 }
 
+app.pool = pool;
+app.initDatabaseSchema = initDatabaseSchema;
 module.exports = app;

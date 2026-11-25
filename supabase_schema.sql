@@ -38,7 +38,19 @@ CREATE TABLE IF NOT EXISTS expenses (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Audit Log Table
+-- 4. Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_expenses_site_active
+  ON expenses (site_id, expense_date, id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_expenses_dedup
+  ON expenses (site_id, expense_date, created_at)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_advances_site_date
+  ON advance_payments (site_id, payment_date, id);
+
+-- 5. Audit Log Table
 CREATE TABLE IF NOT EXISTS audit_log (
   id SERIAL PRIMARY KEY,
   actor TEXT NOT NULL,

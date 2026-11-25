@@ -260,11 +260,12 @@ async function uploadToDrive(token, folderId, fileName, mimeType, fileBuffer) {
     parents: folderId ? [folderId] : []
   };
 
-  const multipartHeader = `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}${delimiter}Content-Type: ${mimeType}\r\nContent-Transfer-Encoding: base64\r\n\r\n`;
+  const multipartHeader = `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}${delimiter}Content-Type: ${mimeType}\r\n\r\n`;
 
+  // Send raw binary bytes instead of base64 to avoid ~33% upload overhead
   const multipartBody = Buffer.concat([
     Buffer.from(multipartHeader, 'utf8'),
-    Buffer.from(fileBuffer.toString('base64'), 'utf8'),
+    fileBuffer,
     Buffer.from(closeDelimiter, 'utf8')
   ]);
 
@@ -278,19 +279,21 @@ async function uploadToDrive(token, folderId, fileName, mimeType, fileBuffer) {
     }
   }, multipartBody);
 
-  // Set file permissions so anyone with the link can view it (useful for ContractFlow viewers)
-  try {
-    const permBody = JSON.stringify({ role: 'reader', type: 'anyone' });
-    await httpsRequest(`https://www.googleapis.com/drive/v3/files/${uploadRes.id}/permissions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(permBody)
-      }
-    }, Buffer.from(permBody));
-  } catch (permErr) {
-    console.warn('[DRIVE] Could not set public view permission:', permErr.message);
+  // Set file permissions unless root folder already inherits anyone-with-link access
+  if (process.env.GOOGLE_DRIVE_INHERIT_PERMISSIONS !== 'true') {
+    try {
+      const permBody = JSON.stringify({ role: 'reader', type: 'anyone' });
+      await httpsRequest(`https://www.googleapis.com/drive/v3/files/${uploadRes.id}/permissions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(permBody)
+        }
+      }, Buffer.from(permBody));
+    } catch (permErr) {
+      console.warn('[DRIVE] Could not set public view permission:', permErr.message);
+    }
   }
 
   // Construct direct viewable URL
@@ -305,12 +308,12 @@ async function uploadToDrive(token, folderId, fileName, mimeType, fileBuffer) {
 /**
  * Saves file locally in public/uploads/:siteId/:fileName as fallback when Google Drive is not configured
  */
-function saveLocally(siteId, fileName, fileBuffer) {
+async function saveLocally(siteId, fileName, fileBuffer) {
   const uploadsDir = path.join(__dirname, 'public', 'uploads', siteId);
-  fs.mkdirSync(uploadsDir, { recursive: true });
+  await fs.promises.mkdir(uploadsDir, { recursive: true });
 
   const filePath = path.join(uploadsDir, fileName);
-  fs.writeFileSync(filePath, fileBuffer);
+  await fs.promises.writeFile(filePath, fileBuffer);
 
   const localUrl = `/uploads/${encodeURIComponent(siteId)}/${encodeURIComponent(fileName)}`;
   return {
@@ -439,12 +442,10 @@ async function deleteExpenseImage(receiptUrl) {
     try {
       const relativePath = decodeURIComponent(receiptUrl.replace(/^\//, ''));
       const localPath = path.join(__dirname, 'public', relativePath);
-      if (fs.existsSync(localPath)) {
-        fs.unlinkSync(localPath);
-        console.log('[LOCAL] Deleted file:', localPath);
-      }
+      await fs.promises.unlink(localPath);
+      console.log('[LOCAL] Deleted file:', localPath);
     } catch (e) {
-      console.warn('[LOCAL DELETE NOTE]:', e.message);
+      if (e.code !== 'ENOENT') console.warn('[LOCAL DELETE NOTE]:', e.message);
     }
     return;
   }
