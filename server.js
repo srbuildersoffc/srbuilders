@@ -36,7 +36,7 @@ const OWNER_PASSWORD     = process.env.OWNER_PASSWORD_HASH || requireEnv('OWNER_
 const ASSISTANT_USERNAME = process.env.ASSISTANT_USERNAME || 'assistant';
 const ASSISTANT_PASSWORD = process.env.ASSISTANT_PASSWORD_HASH || requireEnv('ASSISTANT_PASSWORD');
 const TOKEN_SECRET       = requireEnv('TOKEN_SECRET');
-const TOKEN_EXPIRES_IN   = '24h';
+const TOKEN_EXPIRES_IN   = '48h';
 
 // ─── Password Verification (bcrypt + timingSafeEqual fallback) ──────────────
 function isBcryptHash(val) {
